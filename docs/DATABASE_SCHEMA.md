@@ -7,7 +7,7 @@
 - Database prefix: p15
 - Application port: 9150
 - Random seed: 15
-- City set: To be confirmed from Canvas
+- City set: Sunnyvale, Cupertino, Palo Alto
 
 ## Tables
 
