@@ -11,6 +11,8 @@ from app.schemas import (
     JobRead,
     StudentCreate,
     StudentRead,
+    LoginRequest,
+    LoginResponse,
 )
 
 router = APIRouter()
@@ -162,3 +164,30 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         )
 
     return job
+@router.post("/users/login", response_model=LoginResponse)
+def login_user(login_data: LoginRequest, db: Session = Depends(get_db)):
+    user = db.scalar(
+        select(User).where(User.email == login_data.email)
+    )
+
+    if user is None or not pwd_context.verify(
+        login_data.password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="User account is inactive",
+        )
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": user.role,
+        "message": "Login successful",
+    }
