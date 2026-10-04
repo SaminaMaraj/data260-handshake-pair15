@@ -18,13 +18,6 @@ from app.schemas import (
 router = APIRouter()
 
 
-@router.post("/students", response_model=StudentRead, status_code=201)
-def create_student(student_data: StudentCreate, db: Session = Depends(get_db)):
-    student = Student(**student_data.model_dump())
-    db.add(student)
-    db.commit()
-    db.refresh(student)
-    return student
 from fastapi import APIRouter, Depends, HTTPException
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -153,6 +146,27 @@ def list_jobs(db: Session = Depends(get_db)):
     return db.scalars(select(Job)).all()
 
 
+@router.get("/jobs/search", response_model=list[JobRead])
+def search_jobs(
+    location: str | None = None,
+    category: str | None = None,
+    is_remote: bool | None = None,
+    db: Session = Depends(get_db),
+):
+    statement = select(Job)
+
+    if location:
+        statement = statement.where(Job.location.ilike(f"%{location}%"))
+
+    if category:
+        statement = statement.where(Job.category == category)
+
+    if is_remote is not None:
+        statement = statement.where(Job.is_remote == is_remote)
+
+    statement = statement.order_by(Job.id.desc())
+
+    return db.scalars(statement).all()
 @router.get("/jobs/{job_id}", response_model=JobRead)
 def get_job(job_id: int, db: Session = Depends(get_db)):
     job = db.get(Job, job_id)
