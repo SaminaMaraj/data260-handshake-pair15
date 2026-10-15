@@ -1,0 +1,3 @@
+DATA260 Run 2 synthetic test resume
+For automated test accounts only. Skills: Python, SQL.
+This fixture is not a real applicant document.
