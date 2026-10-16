@@ -1,5 +1,7 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -11,7 +13,6 @@ from app.schemas import (
     EventRegistrationCreate,
     EventRegistrationRead,
 )
-
 
 router = APIRouter(tags=["Events"])
 
@@ -39,8 +40,42 @@ def create_event(
 
 
 @router.get("/events", response_model=list[EventRead])
-def list_events(db: Session = Depends(get_db)):
+def list_events(
+    db: Session = Depends(get_db),
+):
     statement = select(Event).order_by(Event.event_date.asc())
+
+    return db.scalars(statement).all()
+
+
+@router.get("/events/search", response_model=list[EventRead])
+def search_events(
+    q: str | None = None,
+    location: str | None = None,
+    from_date: date | None = None,
+    db: Session = Depends(get_db),
+):
+    statement = select(Event)
+
+    if q:
+        search_text = f"%{q}%"
+        statement = statement.where(
+            or_(
+                Event.event_name.ilike(search_text),
+                Event.description.ilike(search_text),
+                Event.eligibility.ilike(search_text),
+            )
+        )
+
+    if location:
+        statement = statement.where(
+            Event.location.ilike(f"%{location}%")
+        )
+
+    if from_date:
+        statement = statement.where(Event.event_date >= from_date)
+
+    statement = statement.order_by(Event.event_date.asc())
 
     return db.scalars(statement).all()
 
