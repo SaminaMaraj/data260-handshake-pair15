@@ -65,3 +65,14 @@ A simulated malformed tool call first sent an unsupported argument to `search_jo
 | Corrected retry | Successful |
 | Total tool calls | 2 |
 | Final status | Completed |
+
+### Before-and-after reliability measurements
+
+| Measurement | Before repair-path validation | After repair-path validation |
+|---|---:|---:|
+| Total turns | 20 | 20 |
+| Completed turns | 20 | 20 |
+| Iteration-limit failures | 0 | 0 |
+| Total tool calls | 18 | 20 |
+
+Both runs completed successfully without reaching the iteration limit. The second run was completed after validating the malformed-tool recovery path.
