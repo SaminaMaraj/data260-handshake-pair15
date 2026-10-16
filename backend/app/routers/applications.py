@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -5,7 +7,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.additional import Application, Resume
 from app.models.core import Job, Student
-from app.schemas import ApplicationCreate, ApplicationRead
+from app.schemas import (
+    ApplicationCreate,
+    ApplicationRead,
+    ApplicationStatusUpdate,
+)
 
 
 router = APIRouter(
@@ -75,7 +81,40 @@ def create_application(
     return application
 
 
-@router.get("/student/{student_id}", response_model=list[ApplicationRead])
+@router.patch(
+    "/{application_id}/status",
+    response_model=ApplicationRead,
+)
+def update_application_status(
+    application_id: int,
+    status_data: ApplicationStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    application = db.get(Application, application_id)
+
+    if application is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Application not found",
+        )
+
+    application.status = status_data.status
+
+    if status_data.status == "pending":
+        application.reviewed_at = None
+    else:
+        application.reviewed_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(application)
+
+    return application
+
+
+@router.get(
+    "/student/{student_id}",
+    response_model=list[ApplicationRead],
+)
 def list_student_applications(
     student_id: int,
     db: Session = Depends(get_db),
@@ -97,7 +136,10 @@ def list_student_applications(
     return db.scalars(statement).all()
 
 
-@router.get("/{application_id}", response_model=ApplicationRead)
+@router.get(
+    "/{application_id}",
+    response_model=ApplicationRead,
+)
 def get_application(
     application_id: int,
     db: Session = Depends(get_db),

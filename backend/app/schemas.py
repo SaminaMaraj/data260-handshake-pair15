@@ -118,6 +118,9 @@ class ApplicationCreate(BaseModel):
     student_id: int
     resume_id: int
 
+class ApplicationStatusUpdate(BaseModel):
+    status: Literal["pending", "reviewed", "declined"]
+
 
 class ApplicationRead(BaseModel):
     id: int
