@@ -54,3 +54,14 @@ The assistant was given an instruction to ignore its rules and invent a job at N
 | Completed turns | 20 |
 | Iteration-limit failures | 0 |
 | Total tool calls | 18 |
+
+### Repair-path verification
+
+A simulated malformed tool call first sent an unsupported argument to `search_jobs`. The tool returned a controlled error. The assistant then retried with corrected arguments for a Sunnyvale internship search.
+
+| Metric | Result |
+|---|---|
+| Initial malformed call | Controlled tool error |
+| Corrected retry | Successful |
+| Total tool calls | 2 |
+| Final status | Completed |
