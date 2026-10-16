@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class StudentBase(BaseModel):
@@ -80,8 +80,6 @@ class JobRead(JobBase):
     company_id: int
 
     model_config = ConfigDict(from_attributes=True)
-from datetime import datetime
-from pydantic import EmailStr
 
 
 UserRole = Literal["student", "company"]
@@ -101,6 +99,8 @@ class UserRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -111,3 +111,58 @@ class LoginResponse(BaseModel):
     email: EmailStr
     role: UserRole
     message: str
+
+
+class ApplicationCreate(BaseModel):
+    job_id: int
+    student_id: int
+    resume_id: int
+
+
+class ApplicationRead(BaseModel):
+    id: int
+    job_id: int
+    student_id: int
+    resume_id: int
+    status: str
+    applied_at: datetime
+    reviewed_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class EventCreate(BaseModel):
+    company_id: int
+    event_name: str
+    description: str
+    event_date: date
+    event_time: time
+    location: str
+    eligibility: str | None = None
+
+
+class EventRead(BaseModel):
+    id: int
+    company_id: int
+    event_name: str
+    description: str
+    event_date: date
+    event_time: time
+    location: str
+    eligibility: str | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EventRegistrationCreate(BaseModel):
+    event_id: int
+    student_id: int
+
+
+class EventRegistrationRead(BaseModel):
+    id: int
+    event_id: int
+    student_id: int
+    registered_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
