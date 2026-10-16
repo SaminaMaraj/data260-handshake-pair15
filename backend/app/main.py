@@ -6,6 +6,7 @@ from app.routers.applications import router as applications_router
 from app.routers.events import router as events_router
 from app.routers.resumes import router as resumes_router
 from app.routers.preferences import router as preferences_router
+from app.routers.assistant import router as assistant_router
 from app.database import engine
 
 app = FastAPI(
@@ -30,6 +31,7 @@ app.include_router(applications_router)
 app.include_router(events_router)
 app.include_router(resumes_router)
 app.include_router(preferences_router)
+app.include_router(assistant_router)
 @app.get("/")
 def root():
     return {
