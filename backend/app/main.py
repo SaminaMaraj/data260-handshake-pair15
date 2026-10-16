@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.routers.core import router as core_router
 from app.routers.applications import router as applications_router
 from app.routers.events import router as events_router
+from app.routers.resumes import router as resumes_router
 from app.database import engine
 
 app = FastAPI(
@@ -26,6 +27,7 @@ app.add_middleware(
 app.include_router(core_router)
 app.include_router(applications_router)
 app.include_router(events_router)
+app.include_router(resumes_router)
 @app.get("/")
 def root():
     return {
