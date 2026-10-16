@@ -137,7 +137,7 @@ def search_jobs(
         for job, company_record in rows[:20]:
             results.append(
                 {
-                    "id": job.id,
+                    "job_id": job.id,
                     "title": job.title,
                     "company": company_record.company_name,
                     "location": job.location,
@@ -149,7 +149,14 @@ def search_jobs(
                 }
             )
 
-        return _json(results)
+        # Put the real IDs on their own line so the model does not
+        # confuse them with numbers inside company names or titles.
+        job_ids = [item["job_id"] for item in results]
+
+        return (
+            f"JOB_IDS: {job_ids}\n"
+            f"JOBS: {_json(results)}"
+        )
 
     except Exception as error:
         return f"Job search error: {error}"
@@ -162,44 +169,76 @@ def rank_jobs(
     job_ids: list[int],
     limit: int = 5,
 ) -> str:
+    """
+    Sort the given jobs by salary, highest first.
+
+    Values are read from the database and returned unchanged.
+    """
     db = SessionLocal()
 
     try:
         if not job_ids:
             return "No job IDs were provided."
 
+        unique_ids = []
+
+        for job_id in job_ids:
+            if job_id not in unique_ids:
+                unique_ids.append(job_id)
+
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            limit = 5
+
+        limit = max(1, min(limit, 20))
+
         rows = db.execute(
             select(Job, Company)
             .join(Company, Job.company_id == Company.user_id)
-            .where(Job.id.in_(job_ids))
+            .where(Job.id.in_(unique_ids))
         ).all()
 
         if not rows:
-            return "No matching jobs were found."
+            return "No matching jobs were found for those IDs."
 
-        results = []
-
-        for job, company_record in rows:
-            results.append(
-                {
-                    "id": job.id,
-                    "title": job.title,
-                    "company": company_record.company_name,
-                    "location": job.location,
-                    "category": job.category,
-                    "salary": job.salary,
-                    "deadline": job.deadline,
-                    "is_remote": job.is_remote,
-                    "skills": job.skills_json,
-                }
-            )
-
-        results.sort(
-            key=lambda item: float(item["salary"] or 0),
-            reverse=True,
+        rows = sorted(
+            rows,
+            key=lambda row: (
+                row[0].salary is None,
+                -float(row[0].salary or 0),
+            ),
         )
 
-        return _json(results[:limit])
+        results = [
+            {
+                "job_id": job.id,
+                "title": job.title,
+                "company": company_record.company_name,
+                "location": job.location,
+                "category": job.category,
+                "salary": job.salary,
+                "deadline": job.deadline,
+                "is_remote": job.is_remote,
+                "skills": job.skills_json,
+            }
+            for job, company_record in rows[:limit]
+        ]
+
+        found_ids = {job.id for job, _ in rows}
+        missing_ids = [
+            job_id for job_id in unique_ids if job_id not in found_ids
+        ]
+
+        output = {
+            "ranked_by": "salary, highest first",
+            "jobs": results,
+        }
+
+        if missing_ids:
+            output["not_found_ids"] = missing_ids
+
+        return _json(output)
 
     except Exception as error:
         return f"Job ranking error: {error}"
@@ -422,18 +461,14 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_student_preferences",
             "description": (
-                "Use this first when the student asks for jobs "
-                "based on saved preferences."
+                "Return the signed-in student's saved job and event "
+                "preferences. Use this first when the student says "
+                "'my city', 'my preferences', or similar. The student "
+                "ID is supplied automatically; never ask for it."
             ),
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "student_id": {
-                        "type": "integer",
-                        "description": "The current student's ID.",
-                    }
-                },
-                "required": ["student_id"],
+                "properties": {},
             },
         },
     },
@@ -492,9 +527,11 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "rank_jobs",
             "description": (
-                "Use this when the student asks to rank, compare, "
-                "or find the highest-paying jobs from previous results. "
-                "It returns exact database values sorted by salary."
+                "Sort jobs from an earlier search_jobs result by "
+                "salary, highest first. Use this for follow-ups such as "
+                "'higher-paying' or 'rank those'. Copy job IDs exactly "
+                "from the most recent search_jobs result; never guess "
+                "IDs. Returns exact database values."
             ),
             "parameters": {
                 "type": "object",
@@ -505,7 +542,9 @@ TOOL_SCHEMAS = [
                             "type": "integer",
                         },
                         "description": (
-                            "Job IDs from previous search results."
+                            "Values copied from the JOB_IDS line of the "
+                            "most recent search_jobs result. Numbers in "
+                            "company names or titles are not job IDs."
                         ),
                     },
                     "limit": {
@@ -591,10 +630,6 @@ TOOL_SCHEMAS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "student_id": {
-                        "type": "integer",
-                        "description": "The current student's ID.",
-                    },
                     "job_id": {
                         "type": "integer",
                         "description": "The job ID to save.",
@@ -611,7 +646,6 @@ TOOL_SCHEMAS = [
                         ),
                     },
                 },
-                "required": ["student_id"],
             },
         },
     },
