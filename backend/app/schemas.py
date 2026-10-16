@@ -17,6 +17,7 @@ class StudentBase(BaseModel):
     major: str | None = Field(default=None, max_length=150)
     graduation_year: int | None = Field(default=None, ge=1901, le=2155)
     cgpa: Decimal | None = Field(default=None, ge=0, max_digits=4, decimal_places=2)
+    education: str | None = None
     experience: str | None = None
     phone: str | None = Field(default=None, max_length=30)
     profile_picture_url: str | None = Field(default=None, max_length=500)
@@ -122,6 +123,13 @@ class UserCreate(BaseModel):
     password: str
     role: UserRole
 
+    @field_validator("password")
+    @classmethod
+    def valid_password(cls, value):
+        if len(value) < 8 or len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at least 8 characters and at most 72 UTF-8 bytes")
+        return value
+
 
 class UserRead(BaseModel):
     id: int
@@ -163,6 +171,7 @@ class ApplicationRead(BaseModel):
     job_title: str
     company_id: int
     company_name: str
+    student_name: str
 
 
 class ResumeOption(BaseModel):

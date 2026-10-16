@@ -1,6 +1,8 @@
-"""Student-owned applications and existing-resume choices; no upload endpoints."""
+"""Student-owned applications and resume choices; uploads live in part_a.py."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from typing import Literal
+from datetime import date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,14 +20,16 @@ def application_query():
         Application.id, Application.job_id, Application.student_id,
         Application.resume_id, Application.status, Application.applied_at,
         Application.reviewed_at, Job.title.label("job_title"),
-        Job.company_id, Company.company_name,
-    ).join(Job, Application.job_id == Job.id).join(Company, Job.company_id == Company.user_id)
+        Job.company_id, Company.company_name, Student.full_name.label("student_name"),
+    ).join(Job, Application.job_id == Job.id).join(Company, Job.company_id == Company.user_id).join(Student, Application.student_id == Student.user_id)
 
 
 @router.get("/applications", response_model=list[ApplicationRead])
-def my_applications(db: Session = Depends(get_db), user: User = Depends(require_student)):
-    return db.execute(application_query().where(Application.student_id == user.id)
-                      .order_by(Application.applied_at.desc(), Application.id.desc())).mappings().all()
+def my_applications(status: Literal["pending", "reviewed", "declined"] | None = None, db: Session = Depends(get_db), user: User = Depends(require_student)):
+    stmt = application_query().where(Application.student_id == user.id)
+    if status:
+        stmt = stmt.where(Application.status == status)
+    return db.execute(stmt.order_by(Application.applied_at.desc(), Application.id.desc())).mappings().all()
 
 
 @router.get("/applications/resume-options", response_model=list[ResumeOption])
@@ -36,8 +40,11 @@ def resume_options(db: Session = Depends(get_db), user: User = Depends(require_s
 @router.post("/applications", response_model=ApplicationRead, status_code=201)
 def apply_to_job(data: ApplicationCreate, db: Session = Depends(get_db),
                  user: User = Depends(require_student)):
-    if db.get(Job, data.job_id) is None:
+    job = db.get(Job, data.job_id)
+    if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    if job.deadline < date.today():
+        raise HTTPException(status_code=409, detail="The application deadline has passed.")
     if db.get(Student, user.id) is None:
         raise HTTPException(status_code=409, detail="Create your student profile before applying.")
     if db.scalar(select(Application.id).where(

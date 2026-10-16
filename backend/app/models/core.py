@@ -72,6 +72,7 @@ class Student(Base):
     major: Mapped[str | None] = mapped_column(String(150))
     graduation_year: Mapped[int | None] = mapped_column()
     cgpa: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    education: Mapped[str | None] = mapped_column(Text)
     experience: Mapped[str | None] = mapped_column(Text)
     phone: Mapped[str | None] = mapped_column(String(30))
     profile_picture_url: Mapped[str | None] = mapped_column(String(500))

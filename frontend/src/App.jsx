@@ -1,15 +1,24 @@
+import EventsPage from "./components/EventsPage";
+import DirectoryPage from "./components/DirectoryPage";
+import ApplicantsPage from "./components/ApplicantsPage";
+import PreferencesPage from "./components/PreferencesPage";
+import SavedJobsPage from "./components/SavedJobsPage";
+import AssistantChat from "./components/AssistantChat";
 import { useCallback, useState } from "react";
 import "./App.css";
 import ProfilePage from "./components/ProfilePage";
 import JobPostPage from "./components/JobPostPage";
 import JobsPage from "./components/JobsPage";
 import JobDetailsPage from "./components/JobDetailsPage";
+import CompanyJobsPage from "./components/CompanyJobsPage";
 import ApplicationsPage from "./components/ApplicationsPage";
 import { emptyFilters } from "./components/jobFilters";
 
 const API_URL = "http://127.0.0.1:9150";
 
 function App() {
+  const [editingJob,setEditingJob]=useState(null);
+  const [applicantJobId,setApplicantJobId]=useState("");
   const [jobId, setJobId] = useState(null);
   const [filters, setFilters] = useState({ ...emptyFilters });
   const [page, setPage] = useState("dashboard");
@@ -94,6 +103,27 @@ function App() {
 
   function showJob(id) { setJobId(id); setPage("job-details"); }
 
+  if (currentUser && ["events","directory","applicants","preferences","saved"].includes(page)) {
+    const shared={user:currentUser,onUnauthorized:handleUnauthorized,onBack:()=>setPage("dashboard")};
+    return <div className="dashboard-page"><nav className="dashboard-nav"><h2>Handshake</h2><button onClick={handleLogout}>Logout</button></nav>
+      <main className="dashboard">
+        {page==="events" && <EventsPage {...shared} />}
+        {page==="directory" && <DirectoryPage {...shared} />}
+        {page==="applicants" && currentUser.role==="company" && <ApplicantsPage {...shared} initialJobId={applicantJobId} />}
+        {page==="preferences" && currentUser.role==="student" && <PreferencesPage {...shared} />}
+        {page==="saved" && currentUser.role==="student" && <SavedJobsPage {...shared} onDetails={showJob} />}
+      </main></div>;
+  }
+
+  if (currentUser?.role === "company" && page === "company-jobs") {
+    return <div className="dashboard-page">
+      <nav className="dashboard-nav"><h2>Handshake</h2><button onClick={handleLogout}>Logout</button></nav>
+      <main className="dashboard"><CompanyJobsPage user={currentUser} onUnauthorized={handleUnauthorized}
+        onBack={() => setPage("dashboard")} onPost={() => {setEditingJob(null);setPage("post-job");}}
+        onEdit={job=>{setEditingJob(job);setPage("post-job");}} onApplicants={id=>{setApplicantJobId(id);setPage("applicants");}} /></main>
+    </div>;
+  }
+
   if (currentUser?.role === "student" && ["jobs", "job-details", "applications"].includes(page)) {
     const shared = { user: currentUser, onUnauthorized: handleUnauthorized };
     return <div className="dashboard-page">
@@ -117,7 +147,7 @@ function App() {
       <main className="dashboard">
         {page === "profile" ? <ProfilePage user={currentUser} onUnauthorized={handleUnauthorized}
           onBack={() => setPage("dashboard")} /> :
-          <JobPostPage user={currentUser} onUnauthorized={handleUnauthorized}
+          <JobPostPage key={editingJob?.id || "new"} existingJob={editingJob} user={currentUser} onUnauthorized={handleUnauthorized}
             onBack={() => setPage("dashboard")} onProfile={() => setPage("profile")} />}
       </main>
     </div>;
@@ -163,9 +193,15 @@ function App() {
             <div className="dashboard-card">
               <h3>Saved Jobs</h3>
               <p>Review opportunities you saved for later.</p>
-              <button>Saved Jobs</button>
+              <button onClick={()=>setPage("saved")}>Saved Jobs</button>
             </div>
           </div>
+          <div className="d-flex flex-wrap gap-3 mt-3">
+            <button onClick={()=>setPage("events")}>Events</button>
+            <button onClick={()=>setPage("directory")}>Student Directory</button>
+            {currentUser.role==="student"&&<button onClick={()=>setPage("preferences")}>Job Preferences</button>}
+          </div>
+          <AssistantChat />
         </main>
       </div>
     );
@@ -199,21 +235,27 @@ function App() {
             <div className="dashboard-card">
               <h3>Post a Job</h3>
               <p>Create a new job or internship opportunity.</p>
-              <button onClick={() => setPage("post-job")}>Post Job</button>
+              <button onClick={() => {setEditingJob(null);setPage("post-job");}}>Post Job</button>
             </div>
 
             <div className="dashboard-card">
               <h3>My Job Posts</h3>
               <p>View and manage your active job postings.</p>
-              <button>View Jobs</button>
+              <button onClick={() => setPage("company-jobs")}>View Jobs</button>
             </div>
 
             <div className="dashboard-card">
               <h3>Applicants</h3>
               <p>Review students who applied to your opportunities.</p>
-              <button>View Applicants</button>
+              <button onClick={()=>{setApplicantJobId("");setPage("applicants");}}>View Applicants</button>
             </div>
           </div>
+          <div className="d-flex flex-wrap gap-3 mt-3">
+            <button onClick={()=>setPage("events")}>Events</button>
+            <button onClick={()=>setPage("directory")}>Student Directory</button>
+            {currentUser.role==="student"&&<button onClick={()=>setPage("preferences")}>Job Preferences</button>}
+          </div>
+          <AssistantChat />
         </main>
       </div>
     );
@@ -248,8 +290,9 @@ function App() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label>Email</label>
+          <label htmlFor="auth-email">Email</label>
           <input
+            id="auth-email"
             type="email"
             placeholder="Enter your email"
             value={email}
@@ -257,8 +300,9 @@ function App() {
             required
           />
 
-          <label>Password</label>
+          <label htmlFor="auth-password">Password</label>
           <input
+            id="auth-password"
             type="password"
             placeholder="Enter your password"
             value={password}
@@ -268,8 +312,9 @@ function App() {
 
           {mode === "signup" && (
             <>
-              <label>Account Type</label>
+              <label htmlFor="auth-role">Account Type</label>
               <select
+                id="auth-role"
                 value={role}
                 onChange={(event) => setRole(event.target.value)}
               >

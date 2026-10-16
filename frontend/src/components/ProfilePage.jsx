@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "../api";
+import { Photo, Upload } from "./PartACommon";
 import { Fields } from "./fields";
 import { toPayload, toForm } from "./formValues";
 
@@ -15,9 +16,10 @@ const studentFields = [
   ["major", "Major", "text", false, 150],
   ["graduation_year", "Graduation year", "year"],
   ["cgpa", "CGPA", "cgpa"],
+  ["education", "Education history", "textarea"],
   ["experience", "Experience", "textarea"],
   ["phone", "Phone", "tel", false, 30],
-  ["profile_picture_url", "Profile picture URL", "url", false, 500],
+  ["profile_picture_url", "Profile picture URL", "text", false, 500],
   ["skills_json", "Skills (JSON array, e.g. [\"Python\", \"SQL\"])", "json"],
 ];
 const companyFields = [
@@ -25,13 +27,14 @@ const companyFields = [
   ["location", "Location", "text", false, 255],
   ["description", "Description", "textarea"],
   ["contact_phone", "Contact phone", "tel", false, 30],
-  ["profile_picture_url", "Profile picture URL", "url", false, 500],
+  ["profile_picture_url", "Profile picture URL", "text", false, 500],
 ];
 
 export default function ProfilePage({ user, onUnauthorized, onBack }) {
   const student = user.role === "student";
   const resource = student ? "/students" : "/companies";
   const fields = student ? studentFields : companyFields;
+  const [accountEmail, setAccountEmail] = useState(user.email);
   const [form, setForm] = useState({});
   const [exists, setExists] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,6 +46,7 @@ export default function ProfilePage({ user, onUnauthorized, onBack }) {
 
   useEffect(() => {
     let active = true;
+    apiRequest("/users/me", {token:user.access_token,onUnauthorized}).then(data=>{if(active)setAccountEmail(data.email);}).catch(()=>{});
     apiRequest(`${resource}/${user.id}`, { token: user.access_token, onUnauthorized })
       .then((data) => {
         if (active) { setForm(toForm(data)); setExists(true); }
@@ -64,6 +68,9 @@ export default function ProfilePage({ user, onUnauthorized, onBack }) {
         body: exists ? body : { ...body, user_id: user.id },
       });
       setForm(toForm(data));
+      if (accountEmail !== user.email) {
+        await apiRequest("/users/me", {method:"PUT", token:user.access_token, onUnauthorized, body:{email:accountEmail}});
+      }
       setSuccess(exists ? "Profile updated successfully." : "Profile created successfully.");
       setExists(true);
     } catch (err) { setError(err.message); }
@@ -78,12 +85,15 @@ export default function ProfilePage({ user, onUnauthorized, onBack }) {
       <button onClick={() => { setLoadError(""); setLoading(true); setAttempt(attempt + 1); }}>Retry</button>
     </> : <>
       {!exists && <p>No {student ? "student" : "company"} profile exists yet. Create yours below.</p>}
+      <Photo url={form.profile_picture_url} user={user} />
       <form onSubmit={save}>
         <fieldset disabled={saving}>
+          <label htmlFor="profile-email">Email</label><input id="profile-email" type="email" required value={accountEmail} onChange={e=>setAccountEmail(e.target.value)} />
           <Fields fields={fields} form={form} setForm={setForm} />
           <button type="submit">{saving ? "Saving..." : exists ? "Save Changes" : "Create Profile"}</button>
         </fieldset>
       </form>
+      {exists && <Upload kind="picture" user={user} onUnauthorized={onUnauthorized} onUploaded={data=>{setForm({...form,...data});setSuccess("Profile picture updated.");}} />}
     </>}
     {error && <p role="alert">{error}</p>}
     {success && <p role="status">{success}</p>}

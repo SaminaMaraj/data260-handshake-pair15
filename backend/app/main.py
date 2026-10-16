@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.routers.core import router as core_router
 from app.routers.applications import router as applications_router
 from app.database import engine
+from app.routers.part_a import router as part_a_router
 
 app = FastAPI(
     title="Handshake Pair 15 API",
@@ -14,6 +15,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://127.0.0.1:5173",
         "http://localhost:5174",
         "http://localhost:5273",
     ],
@@ -24,6 +26,7 @@ app.add_middleware(
 
 app.include_router(core_router)
 app.include_router(applications_router)
+app.include_router(part_a_router)
 @app.get("/")
 def root():
     return {

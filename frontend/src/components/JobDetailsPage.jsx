@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { apiRequest } from "../api";
 import useApiData from "./useApiData";
+import { Upload, PdfPreview } from "./PartACommon";
+import CompanyDetails from "./CompanyDetails";
 import JobInfo from "./JobInfo";
 
 export default function JobDetailsPage({ jobId, user, onUnauthorized, onBack, onApplications, onProfile }) {
@@ -30,10 +32,14 @@ export default function JobDetailsPage({ jobId, user, onUnauthorized, onBack, on
       <h2>Skills</h2><p>{job.data.skills_json?.length
         ? job.data.skills_json.map((skill) => typeof skill === "string" ? skill : JSON.stringify(skill)).join(", ")
         : "Not specified"}</p>
+      <CompanyDetails companyId={job.data.company_id} user={user} onUnauthorized={onUnauthorized} />
+      <button onClick={async()=>{try{await apiRequest(`/students/me/saved-jobs/${jobId}`,{method:"POST",token:user.access_token,onUnauthorized});setError("Job saved.");}catch(err){setError(err.message);}}}>Save Job</button>
+      <Upload user={user} onUnauthorized={onUnauthorized} onUploaded={resume=>{setResumeId(String(resume.id));resumes.retry();}} />
+      {resumeId && <PdfPreview key={resumeId} resumeId={resumeId} user={user} onUnauthorized={onUnauthorized} />}
       {success ? <p role="status">Application submitted successfully. Status: {success.status}</p> : <>
         {resumes.loading ? <p role="status">Loading resume choices...</p> : resumes.error ? <>
           <p role="alert">Could not load resume choices. {resumes.error}</p><button onClick={resumes.retry}>Retry Resumes</button>
-        </> : !resumes.data.length ? <p role="status">A resume is required to apply. You have no resume on file. Resume upload will be available in Run 3.</p> :
+        </> : !resumes.data.length ? <p role="status">A resume is required to apply. You have no resume on file. Upload a PDF resume using the form above.</p> :
           <div className="form-grid"><div><label htmlFor="application-resume">Resume</label>
             <select id="application-resume" value={resumeId} onChange={(event) => setResumeId(event.target.value)}>
               <option value="">Choose your resume</option>

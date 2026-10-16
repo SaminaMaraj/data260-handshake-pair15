@@ -1,10 +1,13 @@
+import { useState } from "react";
 import useApiData from "./useApiData";
 
 export default function ApplicationsPage({ user, onUnauthorized, onBack, onBrowse, onDetails }) {
-  const { data, loading, error, retry } = useApiData("/applications", user, onUnauthorized);
+  const [status,setStatus]=useState("");
+  const { data, loading, error, retry } = useApiData(`/applications${status ? `?status=${status}` : ""}`, user, onUnauthorized);
   return <section className="feature-page">
     <div className="page-actions"><button onClick={onBack}>Back to Dashboard</button><button onClick={onBrowse}>Browse Jobs</button></div>
     <h1>My Applications</h1>
+    <label>Filter application status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{["pending","reviewed","declined"].map(s=><option key={s} value={s}>{s}</option>)}</select></label>
     {loading ? <p role="status">Loading applications...</p> : error ? <>
       <p role="alert">Could not load applications. {error}</p><button onClick={retry}>Retry</button>
     </> : !data.length ? <p>You have not applied to any jobs yet.</p> : data.map((application) =>
