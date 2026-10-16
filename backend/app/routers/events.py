@@ -3,12 +3,14 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
+from app.auth import get_current_user, require_student
 from app.database import get_db
+from app.routers.part_a import event_output
 from app.models.additional import Event, EventRegistration
-from app.models.core import Company, Student
+from app.models.core import Student, User
 from app.schemas import (
-    EventCreate,
     EventRead,
     EventRegistrationCreate,
     EventRegistrationRead,
@@ -17,43 +19,13 @@ from app.schemas import (
 router = APIRouter(tags=["Events"])
 
 
-@router.post("/events", response_model=EventRead, status_code=201)
-def create_event(
-    event_data: EventCreate,
-    db: Session = Depends(get_db),
-):
-    company = db.get(Company, event_data.company_id)
-
-    if company is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Company not found",
-        )
-
-    event = Event(**event_data.model_dump())
-
-    db.add(event)
-    db.commit()
-    db.refresh(event)
-
-    return event
-
-
-@router.get("/events", response_model=list[EventRead])
-def list_events(
-    db: Session = Depends(get_db),
-):
-    statement = select(Event).order_by(Event.event_date.asc())
-
-    return db.scalars(statement).all()
-
-
 @router.get("/events/search", response_model=list[EventRead])
 def search_events(
     q: str | None = None,
     location: str | None = None,
     from_date: date | None = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     statement = select(Event)
 
@@ -80,22 +52,6 @@ def search_events(
     return db.scalars(statement).all()
 
 
-@router.get("/events/{event_id}", response_model=EventRead)
-def get_event(
-    event_id: int,
-    db: Session = Depends(get_db),
-):
-    event = db.get(Event, event_id)
-
-    if event is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Event not found",
-        )
-
-    return event
-
-
 @router.post(
     "/event-registrations",
     response_model=EventRegistrationRead,
@@ -104,7 +60,10 @@ def get_event(
 def register_for_event(
     registration_data: EventRegistrationCreate,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
+    if registration_data.student_id != user.id:
+        raise HTTPException(403, "You can only register yourself for an event")
     event = db.get(Event, registration_data.event_id)
 
     if event is None:
@@ -134,13 +93,23 @@ def register_for_event(
             detail="Student is already registered for this event",
         )
 
+    # Keep the legacy request/response shape, but enforce Part A eligibility
+    # and the registration deadline on this entry point too.
+    output = event_output(event, db, user)
+    if not output["eligible"]:
+        raise HTTPException(403, output["ineligible_reason"])
+
     registration = EventRegistration(
         event_id=registration_data.event_id,
         student_id=registration_data.student_id,
     )
 
     db.add(registration)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Event registration could not be saved")
     db.refresh(registration)
 
     return registration
@@ -153,7 +122,10 @@ def register_for_event(
 def list_student_event_registrations(
     student_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
+    if student_id != user.id:
+        raise HTTPException(403, "You can only view your own registration history")
     student = db.get(Student, student_id)
 
     if student is None:
@@ -178,6 +150,7 @@ def list_student_event_registrations(
 def get_event_registration(
     registration_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     registration = db.get(EventRegistration, registration_id)
 
@@ -186,5 +159,11 @@ def get_event_registration(
             status_code=404,
             detail="Event registration not found",
         )
+
+    event = db.get(Event, registration.event_id)
+    owns_registration = user.role == "student" and registration.student_id == user.id
+    owns_event = user.role == "company" and event is not None and event.company_id == user.id
+    if not (owns_registration or owns_event):
+        raise HTTPException(403, "This registration is not available to your account")
 
     return registration

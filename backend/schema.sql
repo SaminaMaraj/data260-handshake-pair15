@@ -24,6 +24,7 @@ CREATE TABLE students (
     major VARCHAR(150),
     graduation_year YEAR,
     cgpa DECIMAL(4,2),
+    education TEXT,
     experience TEXT,
     phone VARCHAR(30),
     profile_picture_url VARCHAR(500),

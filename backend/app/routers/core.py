@@ -1,17 +1,26 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from passlib.context import CryptContext
 from sqlalchemy import String, cast, or_, select
 from sqlalchemy.orm import Session
 
+from app.auth import (
+    create_access_token,
+    get_current_user,
+    require_student,
+    require_company,
+)
 from app.database import get_db
 from app.models.core import Company, Job, Student, User
 from app.schemas import (
+    CompanyBase,
     CompanyCreate,
     CompanyRead,
     JobCreate,
     JobRead,
     LoginRequest,
     LoginResponse,
+    StudentBase,
     StudentCreate,
     StudentRead,
     UserCreate,
@@ -83,21 +92,39 @@ def login_user(
         "email": user.email,
         "role": user.role,
         "message": "Login successful",
+        "access_token": create_access_token(user),
+        "token_type": "bearer",
     }
+
+
+@router.get("/users/me", response_model=UserRead)
+def current_user(user: User = Depends(get_current_user)):
+    return user
+
+
+@router.get("/students/me/dashboard", response_model=UserRead)
+def student_dashboard(user: User = Depends(require_student)):
+    return user
+
+
+@router.get("/companies/me/dashboard", response_model=UserRead)
+def company_dashboard(user: User = Depends(require_company)):
+    return user
 
 
 @router.post("/students", response_model=StudentRead, status_code=201)
 def create_student(
     student_data: StudentCreate,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
-    if db.get(User, student_data.user_id) is None:
+    if student_data.user_id != user.id:
         raise HTTPException(
-            status_code=404,
-            detail="User not found",
+            status_code=403,
+            detail="Cannot create records for another user",
         )
 
-    if db.get(Student, student_data.user_id) is not None:
+    if db.get(Student, user.id) is not None:
         raise HTTPException(
             status_code=409,
             detail="Student profile already exists",
@@ -107,13 +134,17 @@ def create_student(
     db.add(student)
     db.commit()
     db.refresh(student)
-
     return student
 
 
 @router.get("/students", response_model=list[StudentRead])
-def list_students(db: Session = Depends(get_db)):
-    return db.scalars(select(Student).order_by(Student.user_id.asc())).all()
+def list_students(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return db.scalars(
+        select(Student).order_by(Student.user_id.asc())
+    ).all()
 
 
 @router.get("/students/search", response_model=list[StudentRead])
@@ -121,6 +152,7 @@ def search_students(
     q: str | None = None,
     major: str | None = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     statement = select(Student)
 
@@ -140,15 +172,16 @@ def search_students(
             Student.major.ilike(f"%{major}%")
         )
 
-    statement = statement.order_by(Student.full_name.asc())
-
-    return db.scalars(statement).all()
+    return db.scalars(
+        statement.order_by(Student.full_name.asc())
+    ).all()
 
 
 @router.get("/students/{user_id}", response_model=StudentRead)
 def get_student(
     user_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     student = db.get(Student, user_id)
 
@@ -165,14 +198,15 @@ def get_student(
 def create_company(
     company_data: CompanyCreate,
     db: Session = Depends(get_db),
+    user: User = Depends(require_company),
 ):
-    if db.get(User, company_data.user_id) is None:
+    if company_data.user_id != user.id:
         raise HTTPException(
-            status_code=404,
-            detail="User not found",
+            status_code=403,
+            detail="Cannot create records for another user",
         )
 
-    if db.get(Company, company_data.user_id) is not None:
+    if db.get(Company, user.id) is not None:
         raise HTTPException(
             status_code=409,
             detail="Company profile already exists",
@@ -182,19 +216,24 @@ def create_company(
     db.add(company)
     db.commit()
     db.refresh(company)
-
     return company
 
 
 @router.get("/companies", response_model=list[CompanyRead])
-def list_companies(db: Session = Depends(get_db)):
-    return db.scalars(select(Company).order_by(Company.company_name.asc())).all()
+def list_companies(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return db.scalars(
+        select(Company).order_by(Company.company_name.asc())
+    ).all()
 
 
 @router.get("/companies/{user_id}", response_model=CompanyRead)
 def get_company(
     user_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     company = db.get(Company, user_id)
 
@@ -211,24 +250,35 @@ def get_company(
 def create_job(
     job_data: JobCreate,
     db: Session = Depends(get_db),
+    user: User = Depends(require_company),
 ):
-    if db.get(Company, job_data.company_id) is None:
+    if job_data.company_id != user.id:
         raise HTTPException(
-            status_code=404,
-            detail="Company not found",
+            status_code=403,
+            detail="Cannot create records for another user",
+        )
+
+    if db.get(Company, user.id) is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Create your company profile first",
         )
 
     job = Job(**job_data.model_dump())
     db.add(job)
     db.commit()
     db.refresh(job)
-
     return job
 
 
 @router.get("/jobs", response_model=list[JobRead])
-def list_jobs(db: Session = Depends(get_db)):
-    return db.scalars(select(Job).order_by(Job.id.desc())).all()
+def list_jobs(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return db.scalars(
+        select(Job).order_by(Job.id.desc())
+    ).all()
 
 
 @router.get("/jobs/search", response_model=list[JobRead])
@@ -238,14 +288,15 @@ def search_jobs(
     category: str | None = None,
     is_remote: bool | None = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     statement = (
         select(Job)
         .join(Company, Job.company_id == Company.user_id)
     )
 
-    if q:
-        search_text = f"%{q}%"
+    if q and q.strip():
+        search_text = f"%{q.strip()}%"
         statement = statement.where(
             or_(
                 Job.title.ilike(search_text),
@@ -264,15 +315,16 @@ def search_jobs(
     if is_remote is not None:
         statement = statement.where(Job.is_remote == is_remote)
 
-    statement = statement.order_by(Job.id.desc())
-
-    return db.scalars(statement).all()
+    return db.scalars(
+        statement.order_by(Job.id.desc())
+    ).all()
 
 
 @router.get("/jobs/{job_id}", response_model=JobRead)
 def get_job(
     job_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     job = db.get(Job, job_id)
 
@@ -283,3 +335,61 @@ def get_job(
         )
 
     return job
+
+
+@router.put("/students/{user_id}", response_model=StudentRead)
+def update_student(
+    user_id: int,
+    profile_data: StudentBase,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_student),
+):
+    if user_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot modify another user's profile",
+        )
+
+    profile = db.get(Student, user.id)
+
+    if profile is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Profile not found",
+        )
+
+    for field, value in profile_data.model_dump().items():
+        setattr(profile, field, value)
+
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+@router.put("/companies/{user_id}", response_model=CompanyRead)
+def update_company(
+    user_id: int,
+    profile_data: CompanyBase,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_company),
+):
+    if user_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot modify another user's profile",
+        )
+
+    profile = db.get(Company, user.id)
+
+    if profile is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Profile not found",
+        )
+
+    for field, value in profile_data.model_dump().items():
+        setattr(profile, field, value)
+
+    db.commit()
+    db.refresh(profile)
+    return profile

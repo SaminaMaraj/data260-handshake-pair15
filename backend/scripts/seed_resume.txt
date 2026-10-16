@@ -1,0 +1,4 @@
+Synthetic DATA 260 Pair 15 resume fixture.
+Not a real applicant or personal document.
+Skills: SQL, Python, data analysis and communication.
+Education: undergraduate analytics coursework.

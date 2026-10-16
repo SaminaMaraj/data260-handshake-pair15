@@ -1,124 +1,172 @@
-from datetime import datetime
+
+"""Application routes combining student security and application history."""
+
+from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import require_student
 from app.database import get_db
 from app.models.additional import Application, Resume
-from app.models.core import Job, Student
-from app.schemas import (
-    ApplicationCreate,
-    ApplicationRead,
-    ApplicationStatusUpdate,
-)
+from app.models.core import Company, Job, Student, User
+from app.schemas import ApplicationCreate, ApplicationRead, ResumeOption
+
+router = APIRouter(tags=["Applications"])
 
 
-router = APIRouter(
-    prefix="/applications",
-    tags=["Applications"],
-)
-
-
-@router.post("", response_model=ApplicationRead, status_code=201)
-def create_application(
-    application_data: ApplicationCreate,
-    db: Session = Depends(get_db),
-):
-    job = db.get(Job, application_data.job_id)
-
-    if job is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found",
+def application_query():
+    return (
+        select(
+            Application.id,
+            Application.job_id,
+            Application.student_id,
+            Application.resume_id,
+            Application.status,
+            Application.applied_at,
+            Application.reviewed_at,
+            Job.title.label("job_title"),
+            Job.company_id,
+            Company.company_name,
+            Student.full_name.label("student_name"),
         )
-
-    student = db.get(Student, application_data.student_id)
-
-    if student is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Student not found",
-        )
-
-    resume = db.get(Resume, application_data.resume_id)
-
-    if resume is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Resume not found",
-        )
-
-    if resume.student_id != student.user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Resume does not belong to this student",
-        )
-
-    existing_application = db.scalar(
-        select(Application).where(
-            Application.job_id == application_data.job_id,
-            Application.student_id == application_data.student_id,
-        )
+        .join(Job, Application.job_id == Job.id)
+        .join(Company, Job.company_id == Company.user_id)
+        .join(Student, Application.student_id == Student.user_id)
     )
 
-    if existing_application is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="Student has already applied for this job",
-        )
 
-    application = Application(
-        job_id=application_data.job_id,
-        student_id=application_data.student_id,
-        resume_id=application_data.resume_id,
-    )
-
-    db.add(application)
-    db.commit()
-    db.refresh(application)
-
-    return application
-
-
-@router.patch(
-    "/{application_id}/status",
-    response_model=ApplicationRead,
-)
-def update_application_status(
-    application_id: int,
-    status_data: ApplicationStatusUpdate,
+@router.get("/applications", response_model=list[ApplicationRead])
+def my_applications(
+    status: Literal["pending", "reviewed", "declined"] | None = None,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
-    application = db.get(Application, application_id)
+    stmt = application_query().where(Application.student_id == user.id)
 
-    if application is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Application not found",
-        )
+    if status:
+        stmt = stmt.where(Application.status == status)
 
-    application.status = status_data.status
-
-    if status_data.status == "pending":
-        application.reviewed_at = None
-    else:
-        application.reviewed_at = datetime.utcnow()
-
-    db.commit()
-    db.refresh(application)
-
-    return application
+    return db.execute(
+        stmt.order_by(Application.applied_at.desc(), Application.id.desc())
+    ).mappings().all()
 
 
 @router.get(
-    "/student/{student_id}",
+    "/applications/resume-options",
+    response_model=list[ResumeOption],
+)
+def resume_options(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_student),
+):
+    return db.scalars(
+        select(Resume)
+        .where(Resume.student_id == user.id)
+        .order_by(Resume.id.desc())
+    ).all()
+
+
+@router.post(
+    "/applications",
+    response_model=ApplicationRead,
+    status_code=201,
+)
+def apply_to_job(
+    data: ApplicationCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_student),
+):
+    job = db.get(Job, data.job_id)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.deadline < date.today():
+        raise HTTPException(
+            status_code=409,
+            detail="The application deadline has passed.",
+        )
+
+    if db.get(Student, user.id) is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Create your student profile before applying.",
+        )
+
+    existing = db.scalar(
+        select(Application.id).where(
+            Application.job_id == data.job_id,
+            Application.student_id == user.id,
+        )
+    )
+
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="You have already applied to this job.",
+        )
+
+    resume = db.get(Resume, data.resume_id)
+
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if resume.student_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only use your own resume.",
+        )
+
+    application = Application(
+        job_id=data.job_id,
+        student_id=user.id,
+        resume_id=resume.id,
+    )
+
+    db.add(application)
+
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+
+        if getattr(error.orig, "args", (None,))[0] == 1062:
+            raise HTTPException(
+                status_code=409,
+                detail="You have already applied to this job.",
+            )
+
+        raise HTTPException(
+            status_code=409,
+            detail="Application could not be saved. Refresh and try again.",
+        )
+
+    db.refresh(application)
+
+    return db.execute(
+        application_query().where(Application.id == application.id)
+    ).mappings().one()
+
+
+@router.get(
+    "/applications/student/{student_id}",
     response_model=list[ApplicationRead],
 )
 def list_student_applications(
     student_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
+    if student_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only view your own applications.",
+        )
+
     student = db.get(Student, student_id)
 
     if student is None:
@@ -127,22 +175,23 @@ def list_student_applications(
             detail="Student not found",
         )
 
-    statement = (
-        select(Application)
-        .where(Application.student_id == student_id)
-        .order_by(Application.id.desc())
+    stmt = application_query().where(
+        Application.student_id == student_id
     )
 
-    return db.scalars(statement).all()
+    return db.execute(
+        stmt.order_by(Application.id.desc())
+    ).mappings().all()
 
 
 @router.get(
-    "/{application_id}",
+    "/applications/{application_id}",
     response_model=ApplicationRead,
 )
 def get_application(
     application_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
     application = db.get(Application, application_id)
 
@@ -152,4 +201,12 @@ def get_application(
             detail="Application not found",
         )
 
-    return application
+    if application.student_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only view your own applications.",
+        )
+
+    return db.execute(
+        application_query().where(Application.id == application_id)
+    ).mappings().one()
