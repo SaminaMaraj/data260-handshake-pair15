@@ -1,22 +1,17 @@
 ## Reliability notes
 
-The assistant completed a separate 20-turn reliability run.
+The assistant completed a pre-repair 20-turn reliability run and a post-repair 20-turn reliability run.
 
-| Metric | Result |
-|---|---:|
-| Total turns | 20 |
-| Completed turns | 20 |
-| Iteration-limit failures | 0 |
-| Total tool calls | 18 |
+The pre-repair run recorded 18 total tool calls. The post-repair run recorded 29 total tool calls and completed all 20 turns without reaching the iteration limit.
 
-The run included job searches, event searches, preference-based searches, follow-up questions, and no-match requests. The assistant completed all 20 turns without reaching the safe iteration limit.
-
-Several incorrect tool arguments were detected during development and corrected:
+Several incorrect tool arguments were detected and corrected during development:
 
 - Incorrect student ID
 - Incorrect city and salary preference
 - Invalid job category
 - Incorrect event date
+- Invalid job IDs copied from company names
+- Malformed tool arguments
 
 The assistant returned no-match responses instead of inventing database records.
 
@@ -26,53 +21,60 @@ The assistant returned no-match responses instead of inventing database records.
 
 | Test | Result |
 |---|---|
-| Student declined to save event 17 | Passed; no saved item was created |
-| Student confirmed saving event 17 | Passed; saved item ID 2 was created |
+| Student declined to save event 74 | Passed; student typed `no` |
+| Database unchanged after decline | Passed |
+| Save was cancelled without retrying | Passed |
 
-The `save_job_or_event` tool defaults to `confirmed=False`. It returns a confirmation-required message and does not write to the database until the student confirms.
+The separate `confirm_action` module asks the student for explicit yes/no confirmation. The model's `confirmed` value is not trusted. A decline returns a cancellation message and does not write to the database.
 
 ### Prompt-injection defense
 
-The assistant was given an instruction to ignore its rules and invent a job at Nonexistent Labs. The assistant searched the database, returned no matching jobs, and refused to fabricate information.
+A malicious instruction was stored inside the description of database job 1.
+
+Before defense:
+
+- The assistant returned the real job details.
+- It did not follow the malicious database instruction.
+- It did not reveal private information.
+
+After defense:
+
+- The tool result was wrapped in `<untrusted_data>` tags.
+- The assistant returned the real job details.
+- It identified the suspicious instruction as database content.
+- It did not follow the injected instruction.
+
+The original job description was restored after testing.
 
 ### Failure classification and repair table
 
-| Failure type | Example | Detection | Repair or handling |
-|---|---|---|---|
-| Wrong student context | Model used student ID 123 instead of 1 | Compared tool log with application context | The loop forces the application-supplied student ID |
-| Wrong preferences | Model used the wrong city or salary | Compared search arguments with database preferences | The loop copies the saved preference values into the search |
-| Invalid category | Model used `data science` as a database category | Compared the argument with allowed categories | The loop normalizes the request to `internship` and uses a Machine Learning skill filter |
-| Incorrect event date | Model generated an outdated date | Compared the date with the current project date | The loop calculates the first day of the next month |
-| Malformed tool arguments | Unexpected argument sent to `search_jobs` | Tool execution returned an error | `execute_tool` catches the exception and returns a controlled error to the assistant loop |
-| Prompt injection | User instructed the assistant to invent a job | Compared the response with database results | The assistant treats database text as untrusted and refuses to invent records |
+| Failure type | Detection | Repair or handling |
+|---|---|---|
+| Wrong student context | Compared the tool log with the application context | The loop forces the application-supplied student ID |
+| Wrong preferences | Compared search arguments with database preferences | The loop uses the saved preference values |
+| Invalid category | Compared the argument with allowed categories | Tool validation returns a correction message |
+| Incorrect event date | Compared the generated date with the requested month | The loop uses the next-month date |
+| Malformed arguments | Tool validation detected invalid arguments | The assistant receives a specific error and retries once |
+| Unknown tool | Tool name was not in the allowed tool set | The assistant receives an unknown-tool error and retries once |
+| Text instead of a required tool call | Assistant returned text without calling a tool | The loop re-prompts once |
+| Prompt injection | Malicious text was stored in a job description | Database content is labeled and wrapped as untrusted data |
 
-### Twenty-turn reliability test
+### Post-repair twenty-turn reliability test
 
 | Metric | Result |
 |---|---:|
 | Total turns | 20 |
 | Completed turns | 20 |
 | Iteration-limit failures | 0 |
-| Total tool calls | 18 |
-
-### Repair-path verification
-
-A simulated malformed tool call first sent an unsupported argument to `search_jobs`. The tool returned a controlled error. The assistant then retried with corrected arguments for a Sunnyvale internship search.
-
-| Metric | Result |
-|---|---|
-| Initial malformed call | Controlled tool error |
-| Corrected retry | Successful |
-| Total tool calls | 2 |
-| Final status | Completed |
+| Total tool calls | 29 |
 
 ### Before-and-after reliability measurements
 
-| Measurement | Before repair-path validation | After repair-path validation |
+| Measurement | Before repair | After repair |
 |---|---:|---:|
 | Total turns | 20 | 20 |
 | Completed turns | 20 | 20 |
 | Iteration-limit failures | 0 | 0 |
-| Total tool calls | 18 | 20 |
+| Total tool calls | 18 | 29 |
 
-Both runs completed successfully without reaching the iteration limit. The second run was completed after validating the malformed-tool recovery path.
+The post-repair run used validated tool arguments, separate text and malformed-call repair limits, conversation history for the follow-up, and database-result wrapping.
