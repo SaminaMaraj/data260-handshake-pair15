@@ -1,0 +1,88 @@
+DATA260 Lab 1 Pair 15 Run Log
+
+Project: Handshake Pair 15
+Pair: 15
+Cities: Sunnyvale, Cupertino, Palo Alto
+Backend port: 9150
+Database: handshake_pair15
+Seed: 15
+
+2026-10-16
+
+1. Started the MySQL Docker container and verified the database connection.
+
+2. Verified the FastAPI server:
+   GET /
+   GET /health/db
+
+3. Tested backend API functionality:
+   - User registration
+   - User login
+   - Student profiles
+   - Company profiles
+   - Job creation and retrieval
+   - Job search and filtering
+   - Event creation and retrieval
+   - Event registration
+   - Resume upload
+   - Job application creation
+   - Application status update
+   - Student preferences
+   - Saved jobs
+
+4. Added and tested search filters:
+   - Job title
+   - Company name
+   - City
+   - Category
+   - Remote status
+   - Student name, college, major, and skills
+   - Event name, location, eligibility, and date
+
+5. Generated Pair 15 seed data:
+   - 200 students
+   - 50 companies
+   - 300 jobs
+   - 1,500 applications
+   - 100 events
+   - 200 resumes
+   - 200 student preferences
+
+6. Verified the local Ollama model:
+   - Model: qwen3:8b
+   - Ollama client connection succeeded
+
+7. Added assistant database tools:
+   - get_student_preferences
+   - search_jobs
+   - get_job_details
+   - search_events
+   - save_job_or_event
+
+8. Added the hand-built assistant loop:
+   - Conversation history
+   - Tool-call logging
+   - Maximum iteration limit
+   - Confirmation-required save behavior
+
+9. Added the FastAPI assistant endpoint:
+   POST /assistant/chat
+
+10. Tested the five required assistant scenarios:
+    - Internship in the student's city
+    - Remote data-science internship
+    - Computer-science event next month
+    - Higher-paying follow-up using conversation history
+    - Missing company/category with a no-match response
+
+11. Detected and corrected assistant errors involving:
+    - Incorrect student ID
+    - Incorrect preference values
+    - Invalid job category
+    - Incorrect event date
+
+12. Captured screenshots for database health, Swagger documentation,
+    API tests, seed counts, Ollama testing, assistant tools, and assistant
+    responses.
+
+All final tests were run locally against the Pair 15 FastAPI and MySQL setup.
