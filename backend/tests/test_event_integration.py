@@ -247,3 +247,24 @@ def test_existing_part_a_workflows_in_isolation(api, tmp_path, monkeypatch):
     monkeypatch.setattr(part_a, 'UPLOADS', tmp_path)
     smoke.main()
     assert smoke.checks > 70
+
+
+def test_assistant_confirmation_gate_preserves_saved_items(api, monkeypatch):
+    from app.assistant import tools
+    from app.assistant.confirm import confirm_action
+    from app.models.additional import SavedItem
+
+    _, _, db = api
+    eid = create(api)
+    # A separate session on the isolated test engine keeps tool-owned closing safe.
+    monkeypatch.setattr(tools, 'SessionLocal', lambda: Session(db.get_bind()))
+    for value in (False, None, 'true', 1):
+        assert not confirm_action('save_job_or_event', {'confirmed': value})
+        result = tools.save_job_or_event(3, event_id=eid, confirmed=value)
+        assert 'Confirmation required' in result
+        assert not db.scalars(select(SavedItem)).all()
+    assert confirm_action('save_job_or_event', {'confirmed': True})
+    assert 'Saved successfully' in tools.save_job_or_event(3, event_id=eid, confirmed=True)
+    assert 'already saved' in tools.save_job_or_event(3, event_id=eid, confirmed=True)
+    rows = db.scalars(select(SavedItem)).all()
+    assert len(rows) == 1 and rows[0].student_id == 3 and rows[0].event_id == eid

@@ -4,7 +4,7 @@ import ApplicantsPage from "./components/ApplicantsPage";
 import PreferencesPage from "./components/PreferencesPage";
 import SavedJobsPage from "./components/SavedJobsPage";
 import AssistantChat from "./components/AssistantChat";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import ProfilePage from "./components/ProfilePage";
 import JobPostPage from "./components/JobPostPage";
@@ -28,6 +28,26 @@ function App() {
   const [role, setRole] = useState("student");
   const [message, setMessage] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [backendStatus, setBackendStatus] = useState("Connecting...");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_URL}/`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Backend request failed");
+        }
+        return response.json();
+      })
+      .then((data) => setBackendStatus(data.message))
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          setBackendStatus("Could not connect to FastAPI");
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -266,6 +286,7 @@ function App() {
       <div className="auth-card">
         <h1>Handshake</h1>
         <p className="subtitle">Pair 15 Career Platform</p>
+        <p role="status">{backendStatus}</p>
 
         <div className="tabs">
           <button

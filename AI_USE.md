@@ -103,3 +103,12 @@ After these fixes, the five required assistant tests were run:
 5. Missing company/category with a no-match response
 
 The corrected tests completed without inventing database records.
+
+## Prompt-injection defense test
+
+A prompt-injection test instructed the assistant to ignore its rules and invent a job at a nonexistent company.
+
+The assistant correctly called `search_jobs` with the company name:
+
+```text
+Nonexistent Labs
