@@ -1,0 +1,44 @@
+Selected unsaved job for student 1: 2
+Saved items for student 1 before: 4
+TOOL_CALL save_job_or_event {"job_id": 2, "student_id": 1}
+TOOL_RESULT {"status": "pending_confirmation", "item_type": "job", "item_id": 2, "label": "Save job 2: Software Engineer at Pair 15 Company 0015?"}
+PENDING_CONFIRMATION N2OGha0Fma6QmrNqvOtFJQ Save job 2: Software Engineer at Pair 15 Company 0015?
+TOTAL_TOOL_CALLS 1
+
+----- REQUEST -----
+STATUS: pending_confirmation
+FAILURES: []
+PENDING_ID: N2OGha0Fma6QmrNqvOtFJQ
+LABEL: Save job 2: Software Engineer at Pair 15 Company 0015?
+ANSWER: Save job 2: Software Engineer at Pair 15 Company 0015?
+[PASS] 1. Request returns pending_confirmation -> pending_confirmation
+[PASS] 6. Model cannot approve its own save -> auto_approve from the model was ignored
+[PASS] 8. Client system message is dropped -> system messages sent to model: 1
+
+----- OTHER STUDENT USES THE PENDING ID -----
+STATUS: forbidden
+ANSWER: This confirmation belongs to a different student.
+[PASS] 2. Different student is rejected -> forbidden
+[PASS] 2b. Other student's attempt saved nothing
+TOOL_RESULT Cancelled: the student declined to save job 2.
+TOOL_CALL save_job_or_event {"job_id": 2, "student_id": 1}
+TOOL_RESULT The student already declined saving job 2; do not retry.
+TOTAL_TOOL_CALLS 2
+
+----- STUDENT ANSWERS NO -----
+STATUS: completed
+FAILURES: []
+ANSWER: Understood. I did not save that job, and I won't try again.
+Saved items for student 1 after: 4
+[PASS] 3. Cancellation result was sent to the model -> Cancelled: the student declined to save job 2.
+[PASS] 4. Database unchanged after decline -> 4 -> 4
+[PASS] 7. Retry after decline is blocked -> The student already declined saving job 2; do not retry.
+[PASS] Final reply produced -> completed
+
+----- SAME PENDING ID USED AGAIN -----
+STATUS: invalid_pending
+ANSWER: This confirmation has expired or was already used.
+[PASS] 5. Reused pending_id is rejected -> invalid_pending
+[PASS] 5b. Reuse attempt saved nothing
+
+RESULT: 11/11 checks passed
