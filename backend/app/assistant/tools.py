@@ -400,8 +400,8 @@ def save_job_or_event(
             item_id = job_id if job_id is not None else event_id
 
             return (
-                f"Confirmation required before saving {item_type} "
-                f"{item_id}."
+                f"Cancelled: the student declined to save "
+                f"{item_type} {item_id}."
             )
 
         if db.get(Student, student_id) is None:
