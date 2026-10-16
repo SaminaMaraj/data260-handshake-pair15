@@ -180,3 +180,33 @@ class ResumeRead(BaseModel):
     uploaded_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class StudentPreferenceCreate(BaseModel):
+    preferred_city: str | None = None
+    preferred_category: JobCategory | None = None
+    minimum_salary: Decimal | None = None
+    preferred_skills_json: list | None = None
+    remote_only: bool = False
+
+
+class StudentPreferenceRead(StudentPreferenceCreate):
+    student_id: int
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SavedItemCreate(BaseModel):
+    student_id: int
+    job_id: int | None = None
+    event_id: int | None = None
+
+
+class SavedItemRead(BaseModel):
+    id: int
+    student_id: int
+    job_id: int | None = None
+    event_id: int | None = None
+    saved_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

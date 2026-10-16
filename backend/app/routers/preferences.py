@@ -1,0 +1,189 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.additional import SavedItem, StudentPreference
+from app.models.core import Company, Job, Student
+from app.models.additional import Event
+from app.schemas import (
+    SavedItemCreate,
+    SavedItemRead,
+    StudentPreferenceCreate,
+    StudentPreferenceRead,
+)
+
+router = APIRouter(tags=["Preferences and Saved Items"])
+
+
+@router.put(
+    "/students/{student_id}/preferences",
+    response_model=StudentPreferenceRead,
+)
+def save_student_preferences(
+    student_id: int,
+    preference_data: StudentPreferenceCreate,
+    db: Session = Depends(get_db),
+):
+    student = db.get(Student, student_id)
+
+    if student is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    preference = db.get(StudentPreference, student_id)
+
+    if preference is None:
+        preference = StudentPreference(
+            student_id=student_id,
+            **preference_data.model_dump(),
+        )
+        db.add(preference)
+    else:
+        for field, value in preference_data.model_dump().items():
+            setattr(preference, field, value)
+
+    db.commit()
+    db.refresh(preference)
+
+    return preference
+
+
+@router.get(
+    "/students/{student_id}/preferences",
+    response_model=StudentPreferenceRead,
+)
+def get_student_preferences(
+    student_id: int,
+    db: Session = Depends(get_db),
+):
+    preference = db.get(StudentPreference, student_id)
+
+    if preference is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No preferences saved for this student",
+        )
+
+    return preference
+
+
+@router.post(
+    "/saved-items",
+    response_model=SavedItemRead,
+    status_code=201,
+)
+def save_item(
+    saved_item_data: SavedItemCreate,
+    db: Session = Depends(get_db),
+):
+    has_job = saved_item_data.job_id is not None
+    has_event = saved_item_data.event_id is not None
+
+    if has_job == has_event:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of job_id or event_id",
+        )
+
+    student = db.get(Student, saved_item_data.student_id)
+
+    if student is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    if saved_item_data.job_id is not None:
+        if db.get(Job, saved_item_data.job_id) is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Job not found",
+            )
+
+        existing_item = db.scalar(
+            select(SavedItem).where(
+                SavedItem.student_id == saved_item_data.student_id,
+                SavedItem.job_id == saved_item_data.job_id,
+            )
+        )
+    else:
+        if db.get(Event, saved_item_data.event_id) is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Event not found",
+            )
+
+        existing_item = db.scalar(
+            select(SavedItem).where(
+                SavedItem.student_id == saved_item_data.student_id,
+                SavedItem.event_id == saved_item_data.event_id,
+            )
+        )
+
+    if existing_item is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This item is already saved",
+        )
+
+    saved_item = SavedItem(
+        student_id=saved_item_data.student_id,
+        job_id=saved_item_data.job_id,
+        event_id=saved_item_data.event_id,
+    )
+
+    db.add(saved_item)
+    db.commit()
+    db.refresh(saved_item)
+
+    return saved_item
+
+
+@router.get(
+    "/saved-items/student/{student_id}",
+    response_model=list[SavedItemRead],
+)
+def list_saved_items(
+    student_id: int,
+    db: Session = Depends(get_db),
+):
+    student = db.get(Student, student_id)
+
+    if student is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    statement = (
+        select(SavedItem)
+        .where(SavedItem.student_id == student_id)
+        .order_by(SavedItem.id.desc())
+    )
+
+    return db.scalars(statement).all()
+
+
+@router.delete(
+    "/saved-items/{saved_item_id}",
+    status_code=204,
+)
+def delete_saved_item(
+    saved_item_id: int,
+    db: Session = Depends(get_db),
+):
+    saved_item = db.get(SavedItem, saved_item_id)
+
+    if saved_item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Saved item not found",
+        )
+
+    db.delete(saved_item)
+    db.commit()
+
+    return None
