@@ -258,13 +258,16 @@ def test_assistant_confirmation_gate_preserves_saved_items(api, monkeypatch):
     eid = create(api)
     # A separate session on the isolated test engine keeps tool-owned closing safe.
     monkeypatch.setattr(tools, 'SessionLocal', lambda: Session(db.get_bind()))
-    for value in (False, None, 'true', 1):
-        assert not confirm_action('save_job_or_event', {'confirmed': value})
-        result = tools.save_job_or_event(3, event_id=eid, confirmed=value)
-        assert 'Confirmation required' in result
-        assert not db.scalars(select(SavedItem)).all()
-    assert confirm_action('save_job_or_event', {'confirmed': True})
-    assert 'Saved successfully' in tools.save_job_or_event(3, event_id=eid, confirmed=True)
-    assert 'already saved' in tools.save_job_or_event(3, event_id=eid, confirmed=True)
+    # API mode: nothing is saved until the application approves.
+    assert confirm_action('save_job_or_event', {'event_id': eid}) == 'pending'
+    result = tools.save_job_or_event(3, event_id=eid)
+    assert 'pending_confirmation' in result
+    assert not db.scalars(select(SavedItem)).all()
+    # Read-only tools are never gated.
+    assert confirm_action('search_jobs', {}) == 'approved'
+    # Only the application's explicit approval saves.
+    assert confirm_action('save_job_or_event', {'event_id': eid}, auto_approve=True) == 'approved'
+    assert 'Saved successfully' in tools.save_job_or_event(3, event_id=eid, auto_approve=True)
+    assert 'already saved' in tools.save_job_or_event(3, event_id=eid, auto_approve=True)
     rows = db.scalars(select(SavedItem)).all()
     assert len(rows) == 1 and rows[0].student_id == 3 and rows[0].event_id == eid

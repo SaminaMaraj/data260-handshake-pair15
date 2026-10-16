@@ -377,39 +377,41 @@ def save_job_or_event(
     student_id: int,
     job_id: int | None = None,
     event_id: int | None = None,
-    confirmed: bool = False,
+    auto_approve: bool = False,
 ) -> str:
+    """
+    Save a job or event for the student, gated by confirm_action.
+
+    auto_approve is set only by the application after the student
+    clicks Yes. The model cannot set it; the loop removes it from
+    model arguments.
+    """
     db = SessionLocal()
 
     try:
         if (job_id is None) == (event_id is None):
             return "Provide exactly one job_id or event_id."
 
-        confirmation_arguments = {
-            "student_id": student_id,
-            "job_id": job_id,
-            "event_id": event_id,
-            "confirmed": confirmed,
-        }
-
-        if not confirm_action(
-            "save_job_or_event",
-            confirmation_arguments,
-        ):
-            item_type = "job" if job_id is not None else "event"
-            item_id = job_id if job_id is not None else event_id
-
-            return (
-                f"Cancelled: the student declined to save "
-                f"{item_type} {item_id}."
-            )
-
         if db.get(Student, student_id) is None:
             return "Student does not exist."
 
         if job_id is not None:
-            if db.get(Job, job_id) is None:
-                return "Job does not exist."
+            item_type = "job"
+            item_id = job_id
+            row = db.execute(
+                select(Job, Company)
+                .join(Company, Job.company_id == Company.user_id)
+                .where(Job.id == job_id)
+            ).first()
+
+            if row is None:
+                return f"No job exists with id {job_id}."
+
+            job, company = row
+            label = (
+                f"Save job {job.id}: {job.title} at "
+                f"{company.company_name}?"
+            )
 
             existing = db.scalar(
                 select(SavedItem).where(
@@ -418,12 +420,18 @@ def save_job_or_event(
                 )
             )
 
-            if existing is not None:
-                return "This job is already saved."
+        else:
+            item_type = "event"
+            item_id = event_id
+            event = db.get(Event, event_id)
 
-        if event_id is not None:
-            if db.get(Event, event_id) is None:
-                return "Event does not exist."
+            if event is None:
+                return f"No event exists with id {event_id}."
+
+            label = (
+                f"Save event {event.id}: {event.event_name} on "
+                f"{event.event_date}?"
+            )
 
             existing = db.scalar(
                 select(SavedItem).where(
@@ -432,8 +440,34 @@ def save_job_or_event(
                 )
             )
 
-            if existing is not None:
-                return "This event is already saved."
+        if existing is not None:
+            return f"This {item_type} is already saved."
+
+        decision = confirm_action(
+            "save_job_or_event",
+            {
+                "student_id": student_id,
+                "job_id": job_id,
+                "event_id": event_id,
+            },
+            auto_approve=auto_approve,
+        )
+
+        if decision == "pending":
+            return _json(
+                {
+                    "status": "pending_confirmation",
+                    "item_type": item_type,
+                    "item_id": item_id,
+                    "label": label,
+                }
+            )
+
+        if decision != "approved":
+            return (
+                f"Cancelled: the student declined to save "
+                f"{item_type} {item_id}."
+            )
 
         saved_item = SavedItem(
             student_id=student_id,
@@ -445,7 +479,10 @@ def save_job_or_event(
         db.commit()
         db.refresh(saved_item)
 
-        return f"Saved successfully. Saved item id is {saved_item.id}."
+        return (
+            f"Saved successfully: {item_type} {item_id}. "
+            f"Saved item id is {saved_item.id}."
+        )
 
     except Exception as error:
         db.rollback()
@@ -624,8 +661,11 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "save_job_or_event",
             "description": (
-                "Use this only after the student explicitly confirms "
-                "saving a job or event."
+                "Save one job or one event for the signed-in student "
+                "when they ask to save it. Provide exactly one of "
+                "job_id or event_id, copied from earlier tool results. "
+                "The application asks the student to confirm before "
+                "anything is saved."
             ),
             "parameters": {
                 "type": "object",
@@ -637,13 +677,6 @@ TOOL_SCHEMAS = [
                     "event_id": {
                         "type": "integer",
                         "description": "The event ID to save.",
-                    },
-                    "confirmed": {
-                        "type": "boolean",
-                        "description": (
-                            "True only after explicit student "
-                            "confirmation."
-                        ),
                     },
                 },
             },
