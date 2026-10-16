@@ -1,15 +1,12 @@
 import json
 from datetime import date
-from decimal import Decimal
 
-from sqlalchemy import String, cast, or_, select
+from sqlalchemy import String, cast, select
+from sqlalchemy.orm import Session
 
+from app.assistant.confirm import confirm_action
 from app.database import SessionLocal
-from app.models.additional import (
-    Event,
-    SavedItem,
-    StudentPreference,
-)
+from app.models.additional import Event, SavedItem, StudentPreference
 from app.models.core import Company, Job, Student
 
 
@@ -18,9 +15,6 @@ def _json(data) -> str:
 
 
 def get_student_preferences(student_id: int) -> str:
-    """
-    Return the saved preferences for one student.
-    """
     db = SessionLocal()
 
     try:
@@ -57,9 +51,6 @@ def search_jobs(
     deadline_before: str | None = None,
     remote_only: bool | None = None,
 ) -> str:
-    """
-    Search jobs using several optional filters.
-    """
     db = SessionLocal()
 
     try:
@@ -136,9 +127,6 @@ def search_jobs(
 
 
 def get_job_details(job_id: int) -> str:
-    """
-    Return one job with company information.
-    """
     db = SessionLocal()
 
     try:
@@ -190,9 +178,6 @@ def search_events(
     date_from: str | None = None,
     eligibility: str | None = None,
 ) -> str:
-    """
-    Search upcoming events.
-    """
     db = SessionLocal()
 
     try:
@@ -257,18 +242,26 @@ def save_job_or_event(
     event_id: int | None = None,
     confirmed: bool = False,
 ) -> str:
-    """
-    Save one job or event after confirmation.
-    """
     db = SessionLocal()
 
     try:
         if (job_id is None) == (event_id is None):
             return "Provide exactly one job_id or event_id."
 
-        if not confirmed:
+        confirmation_arguments = {
+            "student_id": student_id,
+            "job_id": job_id,
+            "event_id": event_id,
+            "confirmed": confirmed,
+        }
+
+        if not confirm_action(
+            "save_job_or_event",
+            confirmation_arguments,
+        ):
             item_type = "job" if job_id is not None else "event"
             item_id = job_id if job_id is not None else event_id
+
             return (
                 f"Confirmation required before saving {item_type} "
                 f"{item_id}."
@@ -315,9 +308,7 @@ def save_job_or_event(
         db.commit()
         db.refresh(saved_item)
 
-        return (
-            f"Saved successfully. Saved item id is {saved_item.id}."
-        )
+        return f"Saved successfully. Saved item id is {saved_item.id}."
 
     except Exception as error:
         db.rollback()
@@ -333,15 +324,15 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_student_preferences",
             "description": (
-                "Return the current student's saved job and "
-                "event preferences."
+                "Use this first when the student asks for jobs "
+                "based on their saved preferences."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "student_id": {
                         "type": "integer",
-                        "description": "The current student's id.",
+                        "description": "The current student's ID.",
                     }
                 },
                 "required": ["student_id"],
@@ -353,8 +344,8 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "search_jobs",
             "description": (
-                "Search jobs by title, company, category, city, "
-                "salary, skills, deadline, or remote status."
+                "Use this to search jobs by title, company, category, "
+                "city, salary, skill, deadline, or remote status."
             ),
             "parameters": {
                 "type": "object",
@@ -379,14 +370,15 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_job_details",
             "description": (
-                "Return a job, company details, and posting information."
+                "Use this when the student requests details about "
+                "one specific job."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "job_id": {
                         "type": "integer",
-                        "description": "The job id.",
+                        "description": "The job ID.",
                     }
                 },
                 "required": ["job_id"],
@@ -398,8 +390,8 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "search_events",
             "description": (
-                "Search upcoming events by name, city, date, "
-                "or eligibility."
+                "Use this to search upcoming events by name, city, "
+                "date, or eligibility."
             ),
             "parameters": {
                 "type": "object",
@@ -420,8 +412,8 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "save_job_or_event",
             "description": (
-                "Save one job or event for a student. "
-                "Always ask for confirmation before using confirmed=true."
+                "Use this only after the student explicitly confirms "
+                "saving a job or event."
             ),
             "parameters": {
                 "type": "object",
@@ -448,9 +440,6 @@ TOOL_FUNCTIONS = {
 
 
 def execute_tool(tool_name: str, arguments: dict) -> str:
-    """
-    Execute a tool safely and always return a string.
-    """
     try:
         function = TOOL_FUNCTIONS.get(tool_name)
 
