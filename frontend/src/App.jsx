@@ -4,8 +4,13 @@ function App() {
   const [backendStatus, setBackendStatus] = useState("Connecting...");
 
   useEffect(() => {
-    fetch("http://127.0.0.1:9150/health")
-      .then((response) => response.json())
+    fetch("http://127.0.0.1:9150/")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Backend request failed");
+        }
+        return response.json();
+      })
       .then((data) => {
         setBackendStatus(data.message);
       })
