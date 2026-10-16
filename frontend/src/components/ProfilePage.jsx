@@ -1,3 +1,4 @@
+import StudentProfileLayout from "./StudentProfileLayout";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../api";
 import { Photo, Upload } from "./PartACommon";
@@ -76,6 +77,15 @@ export default function ProfilePage({ user, onUnauthorized, onBack }) {
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   }
+
+  if (student) return <StudentProfileLayout
+    user={user} onUnauthorized={onUnauthorized} onBack={onBack} fields={fields}
+    form={form} setForm={setForm} exists={exists} loading={loading} loadError={loadError}
+    retry={() => { setLoadError(""); setLoading(true); setAttempt(attempt + 1); }}
+    accountEmail={accountEmail} setAccountEmail={setAccountEmail} saving={saving}
+    save={save} error={error} success={success}
+    onPicture={data => { setForm({ ...form, ...data }); setSuccess("Profile picture updated."); }}
+  />;
 
   return <section className="feature-page">
     <button onClick={onBack}>Back to Dashboard</button>

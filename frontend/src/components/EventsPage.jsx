@@ -1,3 +1,4 @@
+import { StudentEventDiscovery, StudentEventDetail } from "./StudentEventsUI";
 import { useState } from "react";
 import useApiData from "./useApiData";
 import { apiRequest } from "../api";
@@ -37,6 +38,8 @@ function EventDetails({ id,user,onUnauthorized,onBack,onEdit }) {
   if(result.loading) return <p role="status">Loading event...</p>;
   if(result.error) return <><button onClick={onBack}>Back to Events</button><p role="alert">{result.error}</p></>;
   const e=result.data;
+  if (user.role === 'student') return <StudentEventDetail event={e} confirmed={confirmed}
+    setConfirmed={setConfirmed} busy={busy} error={error} register={register} onBack={onBack} />;
   return <><button onClick={onBack}>Back to Events</button><h1>{e.event_name}</h1>
     <p>{e.company_name}</p><p>{e.description}</p><p>{e.event_date} at {e.event_time} · {e.location}</p>
     <h2>Eligibility</h2><p>{e.eligibility||'All students'}</p>
@@ -62,10 +65,15 @@ function Attendees({id,user,onUnauthorized}){
   </>}</section>;
 }
 
-export default function EventsPage({user,onUnauthorized,onBack}){
-  const [q,setQ]=useState(''),[mode,setMode]=useState('all'),[selected,setSelected]=useState(null),[editing,setEditing]=useState(null);
+export default function EventsPage({user,onUnauthorized,onBack,initialEventId=null}){
+  const [q,setQ]=useState(''),[mode,setMode]=useState('all'),[selected,setSelected]=useState(initialEventId),[editing,setEditing]=useState(null);
   const query=new URLSearchParams({q,upcoming:mode==='all'?'true':'false'});if(mode==='mine')query.set('mine','true');if(mode==='registered')query.set('registered','true');
   const result=useApiData(`/events?${query}`,user,onUnauthorized);
+  if (user.role === 'student') return selected
+    ? <EventDetails key={selected} id={selected} user={user} onUnauthorized={onUnauthorized}
+        onEdit={setEditing} onBack={() => { setSelected(null); result.retry(); }} />
+    : <StudentEventDiscovery q={q} setQ={setQ} mode={mode} setMode={setMode} result={result}
+        onBack={onBack} onSelect={setSelected} />;
   return <section className="feature-page">
     {editing ? <EventForm key={editing.id||'new'} event={editing.id?editing:null} user={user} onUnauthorized={onUnauthorized}
       onCancel={()=>setEditing(null)} onSaved={()=>{setEditing(null);setSelected(null);setMode('mine');result.retry();}} />

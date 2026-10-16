@@ -1,3 +1,5 @@
+import StudentDashboard from "./components/StudentDashboard";
+import AppShell from "./components/AppShell";
 import EventsPage from "./components/EventsPage";
 import DirectoryPage from "./components/DirectoryPage";
 import ApplicantsPage from "./components/ApplicantsPage";
@@ -20,6 +22,7 @@ function App() {
   const [editingJob,setEditingJob]=useState(null);
   const [applicantJobId,setApplicantJobId]=useState("");
   const [jobId, setJobId] = useState(null);
+  const [eventId, setEventId] = useState(null);
   const [filters, setFilters] = useState({ ...emptyFilters });
   const [page, setPage] = useState("dashboard");
   const [mode, setMode] = useState("login");
@@ -105,6 +108,7 @@ function App() {
   const handleLogout = () => {
     setFilters({ ...emptyFilters });
     setJobId(null);
+    setEventId(null);
     setPage("dashboard");
     setCurrentUser(null);
     setEmail("");
@@ -123,32 +127,35 @@ function App() {
 
   function showJob(id) { setJobId(id); setPage("job-details"); }
 
+  function navigate(page) {
+    if (page === "events") setEventId(null);
+    if (page === "post-job") setEditingJob(null);
+    if (page === "applicants") setApplicantJobId("");
+    setPage(page);
+  }
+  const shell = { user: currentUser, page, onNavigate: navigate, onLogout: handleLogout };
+
+
   if (currentUser && ["events","directory","applicants","preferences","saved"].includes(page)) {
     const shared={user:currentUser,onUnauthorized:handleUnauthorized,onBack:()=>setPage("dashboard")};
-    return <div className="dashboard-page"><nav className="dashboard-nav"><h2>Handshake</h2><button onClick={handleLogout}>Logout</button></nav>
-      <main className="dashboard">
-        {page==="events" && <EventsPage {...shared} />}
+    return <AppShell {...shell}>
+        {page==="events" && <EventsPage {...shared} initialEventId={eventId} />}
         {page==="directory" && <DirectoryPage {...shared} />}
         {page==="applicants" && currentUser.role==="company" && <ApplicantsPage {...shared} initialJobId={applicantJobId} />}
         {page==="preferences" && currentUser.role==="student" && <PreferencesPage {...shared} />}
         {page==="saved" && currentUser.role==="student" && <SavedJobsPage {...shared} onDetails={showJob} />}
-      </main></div>;
+      </AppShell>;
   }
 
   if (currentUser?.role === "company" && page === "company-jobs") {
-    return <div className="dashboard-page">
-      <nav className="dashboard-nav"><h2>Handshake</h2><button onClick={handleLogout}>Logout</button></nav>
-      <main className="dashboard"><CompanyJobsPage user={currentUser} onUnauthorized={handleUnauthorized}
+    return <AppShell {...shell}><CompanyJobsPage user={currentUser} onUnauthorized={handleUnauthorized}
         onBack={() => setPage("dashboard")} onPost={() => {setEditingJob(null);setPage("post-job");}}
-        onEdit={job=>{setEditingJob(job);setPage("post-job");}} onApplicants={id=>{setApplicantJobId(id);setPage("applicants");}} /></main>
-    </div>;
+        onEdit={job=>{setEditingJob(job);setPage("post-job");}} onApplicants={id=>{setApplicantJobId(id);setPage("applicants");}} /></AppShell>;
   }
 
   if (currentUser?.role === "student" && ["jobs", "job-details", "applications"].includes(page)) {
     const shared = { user: currentUser, onUnauthorized: handleUnauthorized };
-    return <div className="dashboard-page">
-      <nav className="dashboard-nav"><h2>Handshake</h2><button onClick={handleLogout}>Logout</button></nav>
-      <main className="dashboard">
+    return <AppShell {...shell}>
         {page === "jobs" ? <JobsPage {...shared} filters={filters} setFilters={setFilters}
           onBack={() => setPage("dashboard")} onDetails={showJob} /> :
           page === "job-details" ? <JobDetailsPage key={jobId} {...shared} jobId={jobId}
@@ -156,90 +163,30 @@ function App() {
             onProfile={() => setPage("profile")} /> :
             <ApplicationsPage {...shared} onBack={() => setPage("dashboard")}
               onBrowse={() => setPage("jobs")} onDetails={showJob} />}
-      </main>
-    </div>;
+      </AppShell>;
   }
 
   if (currentUser && ((page === "profile" && ["student", "company"].includes(currentUser.role)) ||
       (page === "post-job" && currentUser.role === "company"))) {
-    return <div className="dashboard-page">
-      <nav className="dashboard-nav"><h2>Handshake</h2><button onClick={handleLogout}>Logout</button></nav>
-      <main className="dashboard">
+    return <AppShell {...shell}>
         {page === "profile" ? <ProfilePage user={currentUser} onUnauthorized={handleUnauthorized}
           onBack={() => setPage("dashboard")} /> :
           <JobPostPage key={editingJob?.id || "new"} existingJob={editingJob} user={currentUser} onUnauthorized={handleUnauthorized}
             onBack={() => setPage("dashboard")} onProfile={() => setPage("profile")} />}
-      </main>
-    </div>;
+      </AppShell>;
   }
 
   if (currentUser?.role === "student") {
-    return (
-      <div className="dashboard-page">
-        <nav className="dashboard-nav">
-          <div>
-            <h2>Handshake</h2>
-            <span>Student Portal</span>
-          </div>
-
-          <button onClick={handleLogout}>Logout</button>
-        </nav>
-
-        <main className="dashboard">
-          <div className="dashboard-header">
-            <h1>Student Dashboard</h1>
-            <p>Welcome, {currentUser.email}</p>
-          </div>
-
-          <div className="dashboard-grid">
-            <div className="dashboard-card">
-              <h3>My Profile</h3>
-              <p>View and manage your student profile and skills.</p>
-              <button onClick={() => setPage("profile")}>View Profile</button>
-            </div>
-
-            <div className="dashboard-card">
-              <h3>Browse Jobs</h3>
-              <p>Explore internships, part-time and full-time opportunities.</p>
-              <button onClick={() => setPage("jobs")}>Browse Jobs</button>
-            </div>
-
-            <div className="dashboard-card">
-              <h3>Applications</h3>
-              <p>Track the jobs you have applied to.</p>
-              <button onClick={() => setPage("applications")}>My Applications</button>
-            </div>
-
-            <div className="dashboard-card">
-              <h3>Saved Jobs</h3>
-              <p>Review opportunities you saved for later.</p>
-              <button onClick={()=>setPage("saved")}>Saved Jobs</button>
-            </div>
-          </div>
-          <div className="d-flex flex-wrap gap-3 mt-3">
-            <button onClick={()=>setPage("events")}>Events</button>
-            <button onClick={()=>setPage("directory")}>Student Directory</button>
-            {currentUser.role==="student"&&<button onClick={()=>setPage("preferences")}>Job Preferences</button>}
-          </div>
-          <AssistantChat />
-        </main>
-      </div>
-    );
+    return <AppShell {...shell}>
+      <StudentDashboard user={currentUser} onUnauthorized={handleUnauthorized}
+        onNavigate={navigate} onDetails={showJob}
+        onEvent={id => { setEventId(id); setPage("events"); }} />
+    </AppShell>;
   }
 
   if (currentUser?.role === "company") {
     return (
-      <div className="dashboard-page">
-        <nav className="dashboard-nav">
-          <div>
-            <h2>Handshake</h2>
-            <span>Company Portal</span>
-          </div>
-
-          <button onClick={handleLogout}>Logout</button>
-        </nav>
-
-        <main className="dashboard">
+      <AppShell {...shell}>
           <div className="dashboard-header">
             <h1>Company Dashboard</h1>
             <p>Welcome, {currentUser.email}</p>
@@ -276,8 +223,7 @@ function App() {
             {currentUser.role==="student"&&<button onClick={()=>setPage("preferences")}>Job Preferences</button>}
           </div>
           <AssistantChat />
-        </main>
-      </div>
+        </AppShell>
     );
   }
 
