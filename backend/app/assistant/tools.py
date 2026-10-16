@@ -1,13 +1,20 @@
 import json
 from datetime import date
 
-from sqlalchemy import String, cast, select
-from sqlalchemy.orm import Session
+from sqlalchemy import String, cast, or_, select
 
 from app.assistant.confirm import confirm_action
 from app.database import SessionLocal
 from app.models.additional import Event, SavedItem, StudentPreference
 from app.models.core import Company, Job, Student
+
+
+VALID_CATEGORIES = [
+    "full_time",
+    "part_time",
+    "on_campus",
+    "internship",
+]
 
 
 def _json(data) -> str:
@@ -70,6 +77,12 @@ def search_jobs(
             )
 
         if category:
+            if category not in VALID_CATEGORIES:
+                return (
+                    "Invalid category. Use one of: "
+                    "full_time, part_time, on_campus, internship."
+                )
+
             statement = statement.where(Job.category == category)
 
         if city:
@@ -81,17 +94,36 @@ def search_jobs(
             statement = statement.where(Job.salary >= salary_min)
 
         if skill:
-            statement = statement.where(
-                cast(Job.skills_json, String).ilike(f"%{skill}%")
-            )
+            requested_skills = [
+                item.strip()
+                for item in skill.split(",")
+                if item.strip()
+            ]
+
+            skill_filters = [
+                cast(Job.skills_json, String).ilike(
+                    f"%{requested_skill}%"
+                )
+                for requested_skill in requested_skills
+            ]
+
+            if skill_filters:
+                statement = statement.where(or_(*skill_filters))
 
         if deadline_before:
+            try:
+                parsed_deadline = date.fromisoformat(deadline_before)
+            except ValueError:
+                return "deadline_before must use YYYY-MM-DD format."
+
             statement = statement.where(
-                Job.deadline <= deadline_before
+                Job.deadline <= parsed_deadline
             )
 
         if remote_only is True:
-            statement = statement.where(Job.is_remote.is_(True))
+            statement = statement.where(
+                Job.is_remote.is_(True)
+            )
 
         statement = statement.order_by(Job.deadline.asc())
 
@@ -121,6 +153,56 @@ def search_jobs(
 
     except Exception as error:
         return f"Job search error: {error}"
+
+    finally:
+        db.close()
+
+
+def rank_jobs(
+    job_ids: list[int],
+    limit: int = 5,
+) -> str:
+    db = SessionLocal()
+
+    try:
+        if not job_ids:
+            return "No job IDs were provided."
+
+        rows = db.execute(
+            select(Job, Company)
+            .join(Company, Job.company_id == Company.user_id)
+            .where(Job.id.in_(job_ids))
+        ).all()
+
+        if not rows:
+            return "No matching jobs were found."
+
+        results = []
+
+        for job, company_record in rows:
+            results.append(
+                {
+                    "id": job.id,
+                    "title": job.title,
+                    "company": company_record.company_name,
+                    "location": job.location,
+                    "category": job.category,
+                    "salary": job.salary,
+                    "deadline": job.deadline,
+                    "is_remote": job.is_remote,
+                    "skills": job.skills_json,
+                }
+            )
+
+        results.sort(
+            key=lambda item: float(item["salary"] or 0),
+            reverse=True,
+        )
+
+        return _json(results[:limit])
+
+    except Exception as error:
+        return f"Job ranking error: {error}"
 
     finally:
         db.close()
@@ -176,6 +258,7 @@ def search_events(
     name: str | None = None,
     city: str | None = None,
     date_from: str | None = None,
+    date_to: str | None = None,
     eligibility: str | None = None,
 ) -> str:
     db = SessionLocal()
@@ -194,12 +277,27 @@ def search_events(
             )
 
         if date_from:
+            try:
+                parsed_date_from = date.fromisoformat(date_from)
+            except ValueError:
+                return "date_from must use YYYY-MM-DD format."
+
             statement = statement.where(
-                Event.event_date >= date_from
+                Event.event_date >= parsed_date_from
             )
         else:
             statement = statement.where(
                 Event.event_date >= date.today()
+            )
+
+        if date_to:
+            try:
+                parsed_date_to = date.fromisoformat(date_to)
+            except ValueError:
+                return "date_to must use YYYY-MM-DD format."
+
+            statement = statement.where(
+                Event.event_date <= parsed_date_to
             )
 
         if eligibility:
@@ -325,7 +423,7 @@ TOOL_SCHEMAS = [
             "name": "get_student_preferences",
             "description": (
                 "Use this first when the student asks for jobs "
-                "based on their saved preferences."
+                "based on saved preferences."
             ),
             "parameters": {
                 "type": "object",
@@ -344,24 +442,80 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "search_jobs",
             "description": (
-                "Use this to search jobs by title, company, category, "
-                "city, salary, skill, deadline, or remote status."
+                "Search jobs by title, company, category, city, "
+                "salary, skills, deadline, or remote status."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string"},
-                    "company": {"type": "string"},
-                    "category": {"type": "string"},
-                    "city": {"type": "string"},
-                    "salary_min": {"type": "number"},
-                    "skill": {"type": "string"},
+                    "title": {
+                        "type": "string",
+                        "description": "Words in the job title.",
+                    },
+                    "company": {
+                        "type": "string",
+                        "description": "Words in the company name.",
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": VALID_CATEGORIES,
+                        "description": "The job category.",
+                    },
+                    "city": {
+                        "type": "string",
+                        "description": "The job city.",
+                    },
+                    "salary_min": {
+                        "type": "number",
+                        "description": "Minimum annual salary.",
+                    },
+                    "skill": {
+                        "type": "string",
+                        "description": (
+                            "One skill or comma-separated skills."
+                        ),
+                    },
                     "deadline_before": {
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format.",
                     },
-                    "remote_only": {"type": "boolean"},
+                    "remote_only": {
+                        "type": "boolean",
+                        "description": "Return only remote jobs.",
+                    },
                 },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "rank_jobs",
+            "description": (
+                "Use this when the student asks to rank, compare, "
+                "or find the highest-paying jobs from previous results. "
+                "It returns exact database values sorted by salary."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "job_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                        },
+                        "description": (
+                            "Job IDs from previous search results."
+                        ),
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": (
+                            "Maximum number of jobs to return."
+                        ),
+                    },
+                },
+                "required": ["job_ids"],
             },
         },
     },
@@ -370,8 +524,8 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_job_details",
             "description": (
-                "Use this when the student requests details about "
-                "one specific job."
+                "Use this when the student requests details "
+                "about one specific job."
             ),
             "parameters": {
                 "type": "object",
@@ -390,19 +544,38 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "search_events",
             "description": (
-                "Use this to search upcoming events by name, city, "
-                "date, or eligibility."
+                "Search upcoming events by name, city, date range, "
+                "or student eligibility."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "city": {"type": "string"},
+                    "name": {
+                        "type": "string",
+                        "description": "Words in the event name.",
+                    },
+                    "city": {
+                        "type": "string",
+                        "description": "The event city.",
+                    },
                     "date_from": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format.",
+                        "description": (
+                            "First date to include, "
+                            "in YYYY-MM-DD format."
+                        ),
                     },
-                    "eligibility": {"type": "string"},
+                    "date_to": {
+                        "type": "string",
+                        "description": (
+                            "Last date to include, "
+                            "in YYYY-MM-DD format."
+                        ),
+                    },
+                    "eligibility": {
+                        "type": "string",
+                        "description": "Required student eligibility.",
+                    },
                 },
             },
         },
@@ -418,10 +591,25 @@ TOOL_SCHEMAS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "student_id": {"type": "integer"},
-                    "job_id": {"type": "integer"},
-                    "event_id": {"type": "integer"},
-                    "confirmed": {"type": "boolean"},
+                    "student_id": {
+                        "type": "integer",
+                        "description": "The current student's ID.",
+                    },
+                    "job_id": {
+                        "type": "integer",
+                        "description": "The job ID to save.",
+                    },
+                    "event_id": {
+                        "type": "integer",
+                        "description": "The event ID to save.",
+                    },
+                    "confirmed": {
+                        "type": "boolean",
+                        "description": (
+                            "True only after explicit student "
+                            "confirmation."
+                        ),
+                    },
                 },
                 "required": ["student_id"],
             },
@@ -433,6 +621,7 @@ TOOL_SCHEMAS = [
 TOOL_FUNCTIONS = {
     "get_student_preferences": get_student_preferences,
     "search_jobs": search_jobs,
+    "rank_jobs": rank_jobs,
     "get_job_details": get_job_details,
     "search_events": search_events,
     "save_job_or_event": save_job_or_event,
