@@ -78,3 +78,20 @@ The original job description was restored after testing.
 | Total tool calls | 18 | 29 |
 
 The post-repair run used validated tool arguments, separate text and malformed-call repair limits, conversation history for the follow-up, and database-result wrapping.
+
+
+### Before-and-after reliability measurements
+
+| Measurement | Before repair | After repair |
+|---|---:|---:|
+| Total turns | 20 | 20 |
+| Completed turns | 20 | 20 |
+| Iteration-limit failures | 0 | 0 |
+| Total tool calls | 11 | 6 |
+| Malformed arguments | 0 | 0 |
+| Unknown tools | 0 | 0 |
+| Text instead of required tool call | 11 | 17 |
+| Chain lost | 0 | 0 |
+| Well-formed and correct turns | 9 | 3 |
+
+The post-repair run completed all 20 turns without reaching the iteration limit. However, the model still returned text instead of a tool call on 17 turns. The repair path detected these cases and re-prompted once, but several retries still failed to produce valid tool calls. Therefore, the results are reported honestly and are not presented as an overall improvement.

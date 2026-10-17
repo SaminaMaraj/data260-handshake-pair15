@@ -86,3 +86,75 @@ Seed: 15
     responses.
 
 All final tests were run locally against the Pair 15 FastAPI and MySQL setup.
+
+2026-10-16 (continued): integration, Part B fixes, and Part C
+
+13. Merged Bhavana's Part A frontend and backend branch
+    (part-a-with-samina) into main through pull request #1.
+    Added JWT authentication, role and ownership checks, event
+    eligibility, PDF resume viewing, profile pictures, and the React
+    pages.
+
+14. Reviewed the assistant loop against the rubric and removed
+    test-specific argument overrides (phrase checks and preference
+    copying). See AI_USE.md, incorrect output 1.
+
+15. Added the repair path:
+    - invalid tool calls get one specific error and one retry
+      (MAX_REPAIRS = 1)
+    - a text-only first answer gets one re-prompt (MAX_TEXT_REPAIRS = 1)
+    - each run returns a failures list
+
+16. Added <untrusted_data source="..."> wrapping for all database tool
+    results, with < and > escaped.
+
+17. Added rank_jobs and follow-up validation.
+    Follow-up test (python -m app.assistant.followup_test):
+    - Turn 1: search_jobs returned real results, TOTAL_TOOL_CALLS 1,
+      FAILURES [].
+    - Turn 2 (first run): the model called rank_jobs with numbers from
+      company names. Validation rejected them; the run stopped with
+      repair_failed, failures ['text_instead_of_tool',
+      'malformed_arguments'].
+    - Fix: JOB_IDS line in search_jobs results, job_id field name,
+      clearer repair message, separate repair limits.
+    - TODO: paste the result of the final follow-up run.
+
+18. Removed student_id from the tool schemas; the loop sets it from the
+    application.
+
+19. Database prompt-injection test: a malicious instruction was stored
+    in the description of job 1 and the original description was
+    restored afterward. The assistant returned the real job details and
+    did not follow the injected instruction. Details in METRICS.md.
+    TODO: run all five verification queries with the defense off and
+    on, and record the results.
+
+20. Post-repair 20-turn reliability run
+    (python -m app.assistant.reliability_run):
+    - TOTAL_TURNS: 20
+    - COMPLETED: 20
+    - ITERATION_LIMITS: 0
+    - TOTAL_TOOL_CALLS: 29
+    TODO: rerun before repair (MAX_REPAIRS = 0, MAX_TEXT_REPAIRS = 0)
+    and after repair (both 1) with failure counts by type.
+
+21. Confirmation gate, first version: the student declined saving
+    event 74 at an input() prompt; no saved item was created and the
+    save was not retried.
+
+22. Confirmation gate, final version (pending confirmation for the
+    website):
+    - confirm_action returns approved, declined, or pending
+    - the loop stops at pending_confirmation and stores the action
+      under a pending_id
+    - POST /assistant/confirm resumes the run with Yes or No
+    - /assistant/chat and /assistant/confirm take the student from
+      the JWT
+    Added confirm_flow_test.py (scripted, decline, approve, terminal).
+    TODO: paste the results of:
+      python -m app.assistant.confirm_flow_test scripted
+      python -m app.assistant.confirm_flow_test decline
+      python -m app.assistant.confirm_flow_test approve
+
+23. TODO: frontend end-to-end test with the assistant chat connected.
