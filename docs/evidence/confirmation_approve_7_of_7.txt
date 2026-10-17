@@ -1,0 +1,39 @@
+Selected unsaved job for student 1: 3
+Saved items for student 1 before: 5
+TOOL_CALL save_job_or_event {"job_id": 3, "student_id": 1}
+TOOL_RESULT {"status": "pending_confirmation", "item_type": "job", "item_id": 3, "label": "Save job 3: Research Assistant at Pair 15 Company 0044?"}
+PENDING_CONFIRMATION jPwHnz1VhviMzLOwJKd_qw Save job 3: Research Assistant at Pair 15 Company 0044?
+TOTAL_TOOL_CALLS 1
+
+----- REQUEST -----
+STATUS: pending_confirmation
+FAILURES: []
+PENDING_ID: jPwHnz1VhviMzLOwJKd_qw
+LABEL: Save job 3: Research Assistant at Pair 15 Company 0044?
+ANSWER: Save job 3: Research Assistant at Pair 15 Company 0044?
+[PASS] 1. Request returns pending_confirmation -> pending_confirmation
+
+----- OTHER STUDENT USES THE PENDING ID -----
+STATUS: forbidden
+ANSWER: This confirmation belongs to a different student.
+[PASS] 2. Different student is rejected -> forbidden
+[PASS] 2b. Other student's attempt saved nothing
+TOOL_CALL save_job_or_event {"job_id": 3, "student_id": 1} (student approved)
+TOOL_RESULT Saved successfully: job 3. Saved item id is 6.
+TOTAL_TOOL_CALLS 2
+
+----- STUDENT ANSWERS YES -----
+STATUS: completed
+FAILURES: []
+ANSWER: Job 3 has been saved successfully! Your saved item ID is 6. Let me know if you'd like to save anything else!
+Saved items for student 1 after: 6
+[PASS] Approval saves exactly one item -> 5 -> 6
+[PASS] Final reply produced -> completed
+
+----- SAME PENDING ID USED AGAIN -----
+STATUS: invalid_pending
+ANSWER: This confirmation has expired or was already used.
+[PASS] 5. Reused pending_id is rejected -> invalid_pending
+[PASS] 5b. Reuse attempt saved nothing
+
+RESULT: 7/7 checks passed
