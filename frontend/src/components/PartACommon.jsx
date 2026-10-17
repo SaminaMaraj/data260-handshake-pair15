@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFile, apiRequest } from "../api";
+import "./StudentAccount.css";
 
 export function Photo({ url, user }) {
   const [blob, setBlob] = useState("");
@@ -29,11 +30,13 @@ export function Upload({ user, onUnauthorized, kind = "resume", onUploaded }) {
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
-  return <form onSubmit={submit} className="my-3 border rounded p-3">
+  return <form onSubmit={submit} className={photo ? "my-3 border rounded p-3" : "resume-upload-panel"}>
+    {!photo && <div className="resume-upload-heading"><span className="resume-document-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 3H5v18h14V8z M14 3v5h5 M8 12h8 M8 16h6" /></svg></span><div><h3>Add a resume</h3><p>Upload a PDF to use with your applications.</p></div></div>}
     <label htmlFor={`upload-${kind}`}>{photo ? "Profile picture (PNG/JPEG, up to 3 MB)" : "PDF resume (up to 5 MB)"}</label>
     <input className="form-control" id={`upload-${kind}`} type="file" accept={photo ? "image/png,image/jpeg" : "application/pdf,.pdf"}
       required onChange={e => setFile(e.target.files[0] || null)} />
-    <button className="btn btn-primary mt-2" disabled={busy || !file}>{busy ? "Uploading..." : photo ? "Upload Picture" : "Upload Resume"}</button>
+    {!photo && file && <p className="resume-selected-file" role="status">Selected: <strong>{file.name}</strong></p>}
+    <button className={photo ? "btn btn-primary mt-2" : "resume-upload-button"} disabled={busy || !file}>{busy ? "Uploading..." : photo ? "Upload Picture" : "Upload Resume"}</button>
     {error && <p role="alert">{error}</p>}
   </form>;
 }

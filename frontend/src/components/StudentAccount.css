@@ -1,0 +1,66 @@
+/* Student account sections and existing resume controls; Part 1 tokens. */
+.student-account { color: var(--text); min-width: 0; }
+.student-account button, .resume-upload-panel button { min-height: 44px; }
+.student-account .account-back { background: transparent; color: var(--heading-navy); padding: 8px 0; margin-bottom: var(--space-3); font-size: 13px; }
+.student-account .account-back:hover { background: transparent; text-decoration: underline; }
+.account-eyebrow { display: block; color: var(--heading-navy); font-size: 10px; font-weight: 750; letter-spacing: .13em; }
+.account-page-heading { margin-bottom: var(--space-5); }
+.account-page-heading h1 { margin: var(--space-2) 0 var(--space-3); }
+.account-page-heading p { color: var(--text-muted); margin: 0; }
+.student-profile-hero { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); padding: var(--space-6); background: var(--blue-soft); border: 1px solid var(--border); border-radius: var(--radius-card); margin-bottom: var(--space-5); }
+.student-profile-identity { display: flex; align-items: center; gap: var(--space-5); min-width: 0; }
+.student-profile-identity > div { min-width: 0; }
+.student-profile-identity h2 { margin: var(--space-2) 0; font-size: 25px; overflow-wrap: anywhere; }
+.student-profile-identity p { margin: 3px 0; color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.student-profile-hero > button { flex-shrink: 0; }
+.student-profile-avatar { position: relative; width: 88px; height: 88px; border: 4px solid var(--surface); border-radius: 50%; background: var(--orange-light); color: var(--navy); display: grid; place-items: center; flex-shrink: 0; box-shadow: var(--shadow-card); font-size: 25px; font-weight: 750; overflow: hidden; }
+.student-profile-avatar .profile-photo { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.account-panel { padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-card); min-width: 0; }
+.account-panel h2 { font-size: 19px; margin: 0 0 var(--space-2); }
+.account-description { font-size: 13px; color: var(--text-muted); margin: 0 0 var(--space-5); }
+.student-profile-form > fieldset { display: grid; gap: var(--space-5); border: 0; min-width: 0; margin: 0; padding: 0; }
+.student-preferences-form { display: grid; gap: var(--space-5); }
+.account-section-heading { display: flex; align-items: flex-start; gap: var(--space-3); }
+.account-section-heading > span { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: var(--orange-light); color: var(--navy); font-weight: 750; font-size: 12px; }
+.student-account label { display: block; color: var(--heading-navy); font-size: 13px; font-weight: 650; margin-bottom: var(--space-2); }
+.student-account input:not([type="checkbox"]), .student-account select, .student-account textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; }
+.student-account textarea { resize: vertical; }
+.student-account label > input:not([type="checkbox"]), .student-account label > select { margin-top: var(--space-2); }
+.student-account #profile-email { max-width: 520px; }
+.student-account .account-secondary { background: var(--surface); color: var(--navy); border: 1px solid var(--border); }
+.student-account .account-secondary:hover { background: var(--blue-soft); }
+.account-save-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) 0; }
+.account-save-bar p { margin: 0; color: var(--text-muted); font-size: 12px; }
+.account-save-bar > div { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.account-message { background: var(--blue-soft); color: var(--heading-navy); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-control); margin-block: var(--space-4); }
+.student-account [role="alert"] { border-left: 3px solid var(--orange); padding-left: var(--space-3); }
+.student-photo-upload { margin-top: var(--space-5); }
+.student-photo-upload .btn-primary { background: var(--orange); border-color: transparent; color: var(--navy); font-weight: 650; border-radius: var(--radius-control); }
+.student-photo-upload .btn-primary:hover { background: var(--orange-hover); color: var(--navy); }
+.student-account .account-choice { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); margin: var(--space-4) 0 0; border: 1px solid var(--border); border-radius: var(--radius-control); cursor: pointer; }
+.account-choice.is-selected { background: var(--blue-soft); border-color: var(--heading-navy); }
+.account-choice input { width: 18px; height: 18px; flex-shrink: 0; }
+.account-choice span > span { display: block; font-size: 12px; color: var(--text-muted); font-weight: 400; margin-top: 4px; }
+.resume-upload-panel { border: 1px dashed var(--text-muted); border-radius: var(--radius-card); padding: var(--space-5); margin-block: var(--space-5); background: var(--page-bg); min-width: 0; }
+.resume-upload-heading { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.resume-document-icon { width: 46px; height: 46px; flex-shrink: 0; display: grid; place-items: center; border-radius: var(--radius-control); background: var(--blue-soft); color: var(--navy); }
+.resume-upload-heading h3 { margin: 0 0 4px; font-size: 17px; }
+.resume-upload-heading p { margin: 0; font-size: 13px; color: var(--text-muted); }
+.resume-upload-panel > label { display: block; font-size: 13px; margin-bottom: var(--space-2); }
+.resume-upload-panel .form-control { border-radius: var(--radius-control); border-color: var(--text-muted); background: var(--surface); color: var(--text); font-size: 13px; width: 100%; min-width: 0; }
+.resume-upload-panel .form-control::file-selector-button { background: var(--blue-soft); color: var(--navy); }
+.resume-upload-panel .form-control:focus-visible { outline: 2px solid var(--heading-navy); outline-offset: 3px; box-shadow: var(--focus-ring); }
+.resume-selected-file { font-size: 13px; overflow-wrap: anywhere; margin-block: var(--space-3); }
+.resume-upload-panel .resume-upload-button { margin-top: var(--space-4); background: var(--orange); color: var(--navy); border-radius: var(--radius-control); }
+.resume-upload-panel .resume-upload-button:hover:not(:disabled) { background: var(--orange-hover); }
+.career-application-form #application-resume { background: var(--blue-soft); border-radius: var(--radius-control); min-height: 46px; }
+@media (max-width: 700px) {
+  .student-profile-hero { align-items: flex-start; flex-direction: column; padding: var(--space-5); }
+  .student-profile-identity { align-items: flex-start; gap: var(--space-3); }
+  .student-profile-avatar { width: 64px; height: 64px; font-size: 20px; }
+  .student-profile-identity h2 { font-size: 21px; }
+  .student-account .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .account-panel, .resume-upload-panel { padding: var(--space-4); }
+  .account-save-bar { align-items: stretch; flex-direction: column; }
+  .account-save-bar > div > button { flex: 1; }
+}

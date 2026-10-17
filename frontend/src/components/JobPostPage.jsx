@@ -1,3 +1,4 @@
+import { CompanyHeading } from "./CompanyUI";
 import { useState } from "react";
 import { apiRequest } from "../api";
 import { Fields } from "./fields";
@@ -35,11 +36,10 @@ export default function JobPostPage({ user, onUnauthorized, onBack, onProfile, e
       else setError(err.message);
     } finally { setSaving(false); }
   }
-  return <section className="feature-page">
-    <button onClick={onBack}>Back to Dashboard</button>
-    <h1>{existingJob ? "Edit Job" : "Post a Job"}</h1>
+  return <section className="company-portal">
+    <CompanyHeading title={existingJob ? "Edit Job" : "Post a Job"} description="Share the details students need to find their next opportunity. Required fields are marked *." onBack={onBack} />
     {created ? <p role="status">{existingJob ? "Job updated successfully." : "Job posted successfully."} {created.title} (Job #{created.id})</p> :
-      <form onSubmit={save}><fieldset disabled={saving}>
+      <form className="company-panel company-form" onSubmit={save}><fieldset disabled={saving}>
         <Fields fields={fields} form={form} setForm={setForm} />
         <button type="submit">{saving ? "Saving..." : existingJob ? "Save Job Changes" : "Post Job"}</button>
       </fieldset></form>}
