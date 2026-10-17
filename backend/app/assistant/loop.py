@@ -19,6 +19,8 @@ MAX_REPAIRS = 1
 # Separate one-time nudge when the model answers in text without
 # calling any tool. Set to 0 for the "before repair" run.
 MAX_TEXT_REPAIRS = 1
+# Set False only for the injection test's before-defense run.
+WRAP_UNTRUSTED = True
 
 VALID_CATEGORIES = {
     "full_time",
@@ -257,11 +259,16 @@ def _validate_tool_call(tool_name, arguments, messages):
 
 def _wrap_untrusted_result(tool_name, result):
     """
-    Label and delimit database content so the model can tell it
-    apart from instructions.
+    Label and delimit database content so the model can distinguish it
+    from instructions.
     """
+    result_text = str(result)
+
+    if not WRAP_UNTRUSTED:
+        return result_text
+
     safe_result = (
-        str(result)
+        result_text
         .replace("<", "&lt;")
         .replace(">", "&gt;")
     )
