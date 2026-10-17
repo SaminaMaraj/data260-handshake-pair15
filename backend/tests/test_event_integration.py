@@ -100,7 +100,7 @@ def test_routes_and_openapi():
                   for op in methods.values() if isinstance(op, dict) and 'operationId' in op]
     assert len(operations) == len(set(operations))
     assert 'post' in schema['paths']['/assistant/chat']
-    assert len(schema['paths']) == 44
+    assert len(schema['paths']) == 45
 
 
 def test_authentication_and_cors(api):

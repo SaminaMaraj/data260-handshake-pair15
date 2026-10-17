@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import require_student
 from app.database import get_db
-from app.models.additional import SavedItem, StudentPreference
-from app.models.core import Company, Job, Student
-from app.models.additional import Event
+from app.models.additional import Event, SavedItem, StudentPreference
+from app.models.core import Job, Student, User
 from app.schemas import (
     SavedItemCreate,
     SavedItemRead,
@@ -16,6 +16,15 @@ from app.schemas import (
 router = APIRouter(tags=["Preferences and Saved Items"])
 
 
+def _require_same_student(student_id: int, user: User) -> None:
+    """Reject requests that name a different student than the JWT."""
+    if student_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only access your own data",
+        )
+
+
 @router.put(
     "/students/{student_id}/preferences",
     response_model=StudentPreferenceRead,
@@ -24,8 +33,11 @@ def save_student_preferences(
     student_id: int,
     preference_data: StudentPreferenceCreate,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
-    student = db.get(Student, student_id)
+    _require_same_student(student_id, user)
+
+    student = db.get(Student, user.id)
 
     if student is None:
         raise HTTPException(
@@ -33,11 +45,11 @@ def save_student_preferences(
             detail="Student not found",
         )
 
-    preference = db.get(StudentPreference, student_id)
+    preference = db.get(StudentPreference, user.id)
 
     if preference is None:
         preference = StudentPreference(
-            student_id=student_id,
+            student_id=user.id,
             **preference_data.model_dump(),
         )
         db.add(preference)
@@ -58,8 +70,11 @@ def save_student_preferences(
 def get_student_preferences(
     student_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
-    preference = db.get(StudentPreference, student_id)
+    _require_same_student(student_id, user)
+
+    preference = db.get(StudentPreference, user.id)
 
     if preference is None:
         raise HTTPException(
@@ -78,7 +93,12 @@ def get_student_preferences(
 def save_item(
     saved_item_data: SavedItemCreate,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
+    # The body still carries student_id for compatibility, but the
+    # saved item always belongs to the authenticated student.
+    _require_same_student(saved_item_data.student_id, user)
+
     has_job = saved_item_data.job_id is not None
     has_event = saved_item_data.event_id is not None
 
@@ -88,7 +108,7 @@ def save_item(
             detail="Provide exactly one of job_id or event_id",
         )
 
-    student = db.get(Student, saved_item_data.student_id)
+    student = db.get(Student, user.id)
 
     if student is None:
         raise HTTPException(
@@ -105,7 +125,7 @@ def save_item(
 
         existing_item = db.scalar(
             select(SavedItem).where(
-                SavedItem.student_id == saved_item_data.student_id,
+                SavedItem.student_id == user.id,
                 SavedItem.job_id == saved_item_data.job_id,
             )
         )
@@ -118,7 +138,7 @@ def save_item(
 
         existing_item = db.scalar(
             select(SavedItem).where(
-                SavedItem.student_id == saved_item_data.student_id,
+                SavedItem.student_id == user.id,
                 SavedItem.event_id == saved_item_data.event_id,
             )
         )
@@ -130,7 +150,7 @@ def save_item(
         )
 
     saved_item = SavedItem(
-        student_id=saved_item_data.student_id,
+        student_id=user.id,
         job_id=saved_item_data.job_id,
         event_id=saved_item_data.event_id,
     )
@@ -149,8 +169,11 @@ def save_item(
 def list_saved_items(
     student_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
-    student = db.get(Student, student_id)
+    _require_same_student(student_id, user)
+
+    student = db.get(Student, user.id)
 
     if student is None:
         raise HTTPException(
@@ -160,7 +183,7 @@ def list_saved_items(
 
     statement = (
         select(SavedItem)
-        .where(SavedItem.student_id == student_id)
+        .where(SavedItem.student_id == user.id)
         .order_by(SavedItem.id.desc())
     )
 
@@ -174,6 +197,7 @@ def list_saved_items(
 def delete_saved_item(
     saved_item_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(require_student),
 ):
     saved_item = db.get(SavedItem, saved_item_id)
 
@@ -181,6 +205,12 @@ def delete_saved_item(
         raise HTTPException(
             status_code=404,
             detail="Saved item not found",
+        )
+
+    if saved_item.student_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only delete your own saved items",
         )
 
     db.delete(saved_item)
