@@ -1,3 +1,4 @@
+import CompanyDashboard from "./components/CompanyDashboard";
 import StudentDashboard from "./components/StudentDashboard";
 
 import AppShell from "./components/AppShell";
@@ -235,41 +236,7 @@ function App() {
   if (currentUser?.role === "company") {
     return (
       <AppShell {...shell}>
-          <div className="dashboard-header">
-            <h1>Company Dashboard</h1>
-            <p>Welcome, {currentUser.email}</p>
-          </div>
-
-          <div className="dashboard-grid">
-            <div className="dashboard-card">
-              <h3>Company Profile</h3>
-              <p>View and manage your company information.</p>
-              <button onClick={() => setPage("profile")}>View Profile</button>
-            </div>
-
-            <div className="dashboard-card">
-              <h3>Post a Job</h3>
-              <p>Create a new job or internship opportunity.</p>
-              <button onClick={() => {setEditingJob(null);setPage("post-job");}}>Post Job</button>
-            </div>
-
-            <div className="dashboard-card">
-              <h3>My Job Posts</h3>
-              <p>View and manage your active job postings.</p>
-              <button onClick={() => setPage("company-jobs")}>View Jobs</button>
-            </div>
-
-            <div className="dashboard-card">
-              <h3>Applicants</h3>
-              <p>Review students who applied to your opportunities.</p>
-              <button onClick={()=>{setApplicantJobId("");setPage("applicants");}}>View Applicants</button>
-            </div>
-          </div>
-          <div className="d-flex flex-wrap gap-3 mt-3">
-            <button onClick={()=>setPage("events")}>Events</button>
-            <button onClick={()=>setPage("directory")}>Student Directory</button>
-            {currentUser.role==="student"&&<button onClick={()=>setPage("preferences")}>Job Preferences</button>}
-          </div>
+          <CompanyDashboard user={currentUser} onUnauthorized={handleUnauthorized} onNavigate={navigate} />
           <AssistantChat user={currentUser} onUnauthorized={handleUnauthorized} />
         </AppShell>
     );

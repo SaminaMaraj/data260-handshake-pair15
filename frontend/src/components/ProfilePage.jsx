@@ -1,3 +1,4 @@
+import { CompanyHeading } from "./CompanyUI";
 import StudentProfileLayout from "./StudentProfileLayout";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../api";
@@ -87,23 +88,22 @@ export default function ProfilePage({ user, onUnauthorized, onBack }) {
     onPicture={data => { setForm({ ...form, ...data }); setSuccess("Profile picture updated."); }}
   />;
 
-  return <section className="feature-page">
-    <button onClick={onBack}>Back to Dashboard</button>
-    <h1>{student ? "Student" : "Company"} Profile</h1>
+  return <section className="company-portal">
+    <CompanyHeading title="Company Profile" description="Introduce your team and keep your company information up to date." onBack={onBack} />
     {loading ? <p role="status">Loading profile...</p> : loadError ? <>
       <p role="alert">Could not load profile. {loadError}</p>
       <button onClick={() => { setLoadError(""); setLoading(true); setAttempt(attempt + 1); }}>Retry</button>
     </> : <>
       {!exists && <p>No {student ? "student" : "company"} profile exists yet. Create yours below.</p>}
-      <Photo url={form.profile_picture_url} user={user} />
-      <form onSubmit={save}>
+      <div className="company-panel company-profile-summary"><Photo url={form.profile_picture_url} user={user} /><div><span className="company-eyebrow">YOUR COMPANY</span><h2>{form.company_name || "Create your company profile"}</h2><p>{form.location || "Add your location below"}</p></div></div>
+      <form className="company-panel company-form" onSubmit={save}>
         <fieldset disabled={saving}>
           <label htmlFor="profile-email">Email</label><input id="profile-email" type="email" required value={accountEmail} onChange={e=>setAccountEmail(e.target.value)} />
           <Fields fields={fields} form={form} setForm={setForm} />
           <button type="submit">{saving ? "Saving..." : exists ? "Save Changes" : "Create Profile"}</button>
         </fieldset>
       </form>
-      {exists && <Upload kind="picture" user={user} onUnauthorized={onUnauthorized} onUploaded={data=>{setForm({...form,...data});setSuccess("Profile picture updated.");}} />}
+      {exists && <section className="company-panel company-logo"><h2>Company Logo</h2><p>Upload a profile picture to help students recognize your company.</p><Upload kind="picture" user={user} onUnauthorized={onUnauthorized} onUploaded={data=>{setForm({...form,...data});setSuccess("Profile picture updated.");}} /></section>}
     </>}
     {error && <p role="alert">{error}</p>}
     {success && <p role="status">{success}</p>}

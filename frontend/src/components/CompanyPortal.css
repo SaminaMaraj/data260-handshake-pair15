@@ -1,0 +1,77 @@
+/* Company layouts use shared tokens without changing student presentation. */
+.company-portal { display: grid; gap: var(--space-5); color: var(--text); min-width: 0; }
+.company-portal h1, .company-portal h2, .company-portal h3 { color: var(--heading-navy); font-weight: 750; line-height: 1.25; }
+.company-portal h1 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -.035em; margin: 8px 0 12px; }
+.company-portal h2 { font-size: 21px; margin: 0 0 10px; }
+.company-portal h3 { font-size: 17px; margin: 10px 0 6px; }
+.company-portal p { color: var(--text-muted); line-height: 1.6; margin: 0 0 12px; }
+.company-portal small { color: var(--text-muted); }
+.company-eyebrow { display: block; color: var(--text-muted); font-size: 11px; font-weight: 750; letter-spacing: .1em; }
+.company-heading-row, .company-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+.company-heading-row > div:first-child { flex: 1; min-width: min(100%, 220px); }
+.company-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.company-portal button { min-height: 44px; white-space: normal; }
+.company-portal .company-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--navy); }
+.company-portal .company-secondary:hover:not(:disabled) { background: var(--blue-soft); border-color: var(--navy); }
+.company-portal .company-back, .company-portal .company-link { color: var(--navy); background: transparent; padding: 8px 0; text-align: left; }
+.company-portal .company-back:hover, .company-portal .company-link:hover { text-decoration: underline; background: transparent; }
+.company-heading .company-back { margin-bottom: 12px; }
+.company-welcome { padding: clamp(24px, 4vw, 40px); border: 1px solid var(--border); border-radius: var(--radius-card); background: linear-gradient(110deg, var(--surface) 40%, var(--orange-light)); }
+.company-welcome h1 { max-width: 740px; }
+.company-welcome p { max-width: 620px; margin-bottom: 24px; }
+.company-panel { padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-card); min-width: 0; }
+.company-statistics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.company-stat h2 { font-size: 14px; color: var(--text-muted); }
+.company-stat > strong { display: block; font-size: 38px; line-height: 1.3; color: var(--heading-navy); margin: 10px 0; }
+.company-stat { border-top: 3px solid var(--orange); }
+.company-stat p { font-size: 13px; }
+.company-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
+.company-preview { padding: 20px 0; border-top: 1px solid var(--border); }
+.company-preview:last-child { padding-bottom: 0; }
+.company-section-heading { margin-bottom: 20px; }
+.company-badge { display: inline-block; padding: 6px 10px; border-radius: 7px; background: var(--orange-light); color: var(--navy); font-size: 12px; font-weight: 650; text-transform: capitalize; }
+.company-badge.is-muted { background: var(--blue-soft); }
+.company-job .company-badge { margin-bottom: 10px; }
+.company-job .job-info { padding: 20px; background: var(--page-bg); border-radius: var(--radius-control); }
+.company-empty, .company-state { padding: 20px 0; }
+.company-portal [role="alert"] { color: #b91c1c; padding: 12px; border-left: 3px solid #b91c1c; background: #fff5f5; border-radius: 4px; }
+.company-portal [role="status"] { color: var(--text-muted); }
+.company-portal label { display: block; font-size: 14px; font-weight: 600; color: var(--heading-navy); margin: 0 0 8px; }
+.company-portal input:not([type="checkbox"]), .company-portal select, .company-portal textarea { display: block; width: 100%; min-width: 0; max-width: 100%; border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; margin: 8px 0 0; }
+.company-portal input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--orange); }
+.company-portal textarea { resize: vertical; }
+.company-portal fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
+.company-form .form-grid { margin: 24px 0; gap: 24px; }
+.company-form button + button, .company-event-detail > button + button { margin-left: 12px; }
+.company-form .form-grid label { margin-bottom: 8px; }
+.company-profile-summary { display: flex; gap: 24px; align-items: center; }
+.company-profile-summary h2 { margin-top: 8px; }
+.company-logo form { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.company-logo input[type="file"] { flex: 1; min-width: min(100%, 220px); }
+.company-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.company-filters label { margin: 0; }
+.company-applicant > label { margin-top: 24px; max-width: 340px; }
+.company-event { display: flex; gap: 24px; align-items: flex-start; }
+.company-event > div { min-width: 0; }
+.company-event-date { flex-shrink: 0; display: grid; gap: 8px; background: var(--orange-light); padding: 16px; border-radius: var(--radius-control); color: var(--navy); font-weight: 700; }
+.company-event-date span { font-size: 10px; letter-spacing: .08em; }
+.company-event-detail > .company-eyebrow { margin-top: 24px; }
+.company-event-detail > h2 { margin-top: 24px; }
+.company-event-detail > p { white-space: pre-wrap; }
+.company-event-detail > section { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px; }
+.company-quick-actions { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.company-portal .feature-page { padding: 24px; }
+.company-portal .feature-page .job-info > div { grid-column: 1 / -1; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+@media (max-width: 1199px) { .company-columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) {
+  .company-statistics, .company-filters, .company-form .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .company-panel { padding: 20px; }
+  .company-event, .company-profile-summary { flex-direction: column; }
+  .company-event-date { width: 100%; }
+  .company-heading-row { align-items: flex-start; }
+  .company-heading-row > .company-actions { width: 100%; }
+  .company-portal .company-actions > button { flex: 1 1 auto; }
+  .company-job .job-info { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 16px; }
+  .company-job .job-info dd { margin-bottom: 12px; }
+  .company-form button + button { margin-top: 12px; }
+}
