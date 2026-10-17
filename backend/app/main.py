@@ -7,7 +7,6 @@ from app.database import engine
 from app.routers.core import router as core_router
 from app.routers.applications import router as applications_router
 from app.routers.events import router as events_router
-from app.routers.resumes import router as resumes_router
 from app.routers.preferences import router as preferences_router
 from app.routers.assistant import router as assistant_router
 from app.routers.part_a import router as part_a_router
@@ -33,7 +32,6 @@ app.add_middleware(
 
 app.include_router(core_router)
 app.include_router(applications_router)
-app.include_router(resumes_router)
 app.include_router(assistant_router)
 # Register the static /events/search route before Part A /events/{event_id}.
 app.include_router(events_router)
