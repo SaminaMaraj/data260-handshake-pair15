@@ -123,5 +123,5 @@ export default function StudentDashboard({ user, onUnauthorized, onNavigate, onD
         </LoadState>
       </section>
     </aside></div>
-  </div><AssistantChat /></>;
+  </div><AssistantChat user={user} onUnauthorized={onUnauthorized} /></>;
 }

@@ -1,5 +1,9 @@
 import json
+from copy import deepcopy
 from datetime import date
+
+from fastapi import HTTPException
+from app.assistant.pending import validate_target, create_pending
 
 from app.assistant.client import OllamaClient
 from app.assistant.tools import TOOL_SCHEMAS, execute_tool
@@ -43,7 +47,8 @@ def _parse_arguments(arguments):
 
     if isinstance(arguments, str):
         try:
-            return json.loads(arguments)
+            parsed = json.loads(arguments)
+            return parsed if isinstance(parsed, dict) else {}
         except json.JSONDecodeError:
             return {}
 
@@ -62,8 +67,9 @@ def _first_day_of_next_month() -> str:
 def run_assistant(
     user_message: str,
     conversation: list[dict] | None = None,
-    student_id: int = 1,
+    student_id: int | None = None,
     client: OllamaClient | None = None,
+    db=None,
 ) -> dict:
     """
     Run the hand-built assistant loop.
@@ -82,7 +88,7 @@ def run_assistant(
         }
     ]
 
-    messages.extend(conversation)
+    messages.extend(deepcopy(conversation))
 
     messages.append(
         {
@@ -101,8 +107,36 @@ def run_assistant(
             tools=TOOL_SCHEMAS,
         )
 
+        if not isinstance(assistant_message, dict) or assistant_message.get('error'):
+            raise HTTPException(503, 'The assistant service is unavailable. Please try again later.')
+        assistant_message['role'] = 'assistant'
         tool_calls = assistant_message.get("tool_calls", [])
+        if not isinstance(tool_calls, list) or any(
+            not isinstance(call, dict) or not isinstance(call.get('function'), dict)
+            for call in tool_calls
+        ):
+            raise HTTPException(502, 'The assistant returned an invalid response. Please retry.')
+        # Intercept the whole batch before any write. Close every tool call in the
+        # history so subsequent turns never replay an unresolved model request.
+        writes = [call for call in tool_calls if call.get('function', {}).get('name') == 'save_job_or_event']
+        if writes:
+            if db is None or student_id is None:
+                raise HTTPException(403, 'Authenticated approval context is required.')
+            arguments, explanation = validate_target(db, student_id, _parse_arguments(writes[0]['function'].get('arguments', {})))
+            messages.append(assistant_message)
+            for call in tool_calls:
+                reply = {'role': 'tool', 'tool_name': call.get('function', {}).get('name', ''),
+                         'content': 'Not executed. Waiting for explicit user approval of the selected action.'}
+                if call.get('id'):
+                    reply['tool_call_id'] = call['id']
+                messages.append(reply)
+            messages.append({'role': 'assistant', 'content': explanation})
+            result = create_pending(db, student_id, arguments, messages[1:], explanation)
+            result.update(tool_calls=tool_call_count, iterations=iteration + 1)
+            return result
 
+        if not tool_calls and (not isinstance(assistant_message.get('content'), str) or not assistant_message['content'].strip()):
+            raise HTTPException(502, 'The assistant returned no answer. Please retry.')
         if not tool_calls:
             final_answer = assistant_message.get(
                 "content",
@@ -187,10 +221,6 @@ def run_assistant(
                     _first_day_of_next_month()
                 )
 
-            print(
-                f"TOOL_CALL {tool_name} "
-                f"{json.dumps(arguments, default=str)}"
-            )
 
             result = execute_tool(
                 tool_name=tool_name,
@@ -210,12 +240,13 @@ def run_assistant(
 
             tool_call_count += 1
 
-            print(f"TOOL_RESULT {result}")
 
             messages.append(
                 {
                     "role": "tool",
                     "content": result,
+                    "tool_name": tool_name,
+                    **({"tool_call_id": tool_call["id"]} if tool_call.get("id") else {}),
                 }
             )
 

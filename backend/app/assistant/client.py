@@ -74,8 +74,9 @@ class OllamaClient:
                 },
             )
 
-        except Exception as error:
+        except Exception:
             return {
                 "role": "assistant",
-                "content": f"Ollama request failed: {error}",
+                "content": "The assistant service is unavailable. Please try again later.",
+                "error": True,
             }

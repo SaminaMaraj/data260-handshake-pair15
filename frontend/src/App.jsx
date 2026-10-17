@@ -1,51 +1,99 @@
 import StudentDashboard from "./components/StudentDashboard";
+
 import AppShell from "./components/AppShell";
+
 import EventsPage from "./components/EventsPage";
+
 import DirectoryPage from "./components/DirectoryPage";
+
 import ApplicantsPage from "./components/ApplicantsPage";
+
 import PreferencesPage from "./components/PreferencesPage";
+
 import SavedJobsPage from "./components/SavedJobsPage";
+
 import AssistantChat from "./components/AssistantChat";
+
 import { useCallback, useEffect, useState } from "react";
+
 import "./App.css";
+
 import ProfilePage from "./components/ProfilePage";
+
 import JobPostPage from "./components/JobPostPage";
+
 import JobsPage from "./components/JobsPage";
+
 import JobDetailsPage from "./components/JobDetailsPage";
+
 import CompanyJobsPage from "./components/CompanyJobsPage";
+
 import ApplicationsPage from "./components/ApplicationsPage";
+
 import { emptyFilters } from "./components/jobFilters";
+
+
 
 const API_URL = "http://127.0.0.1:9150";
 
+
+
 function App() {
+
   const [editingJob,setEditingJob]=useState(null);
+
   const [applicantJobId,setApplicantJobId]=useState("");
+
   const [jobId, setJobId] = useState(null);
+
   const [eventId, setEventId] = useState(null);
+
   const [filters, setFilters] = useState({ ...emptyFilters });
+
   const [page, setPage] = useState("dashboard");
+
   const [mode, setMode] = useState("login");
+
   const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
+
   const [role, setRole] = useState("student");
+
   const [message, setMessage] = useState("");
+
   const [currentUser, setCurrentUser] = useState(null);
+
   const [backendStatus, setBackendStatus] = useState("Connecting...");
 
+
+
   useEffect(() => {
+
     const controller = new AbortController();
+
     fetch(`${API_URL}/`, { signal: controller.signal })
+
       .then((response) => {
+
         if (!response.ok) {
+
           throw new Error("Backend request failed");
+
         }
+
         return response.json();
+
       })
+
       .then((data) => setBackendStatus(data.message))
+
       .catch((error) => {
+
         if (error.name !== "AbortError") {
+
           setBackendStatus("Could not connect to FastAPI");
+
         }
       });
     return () => controller.abort();
@@ -222,7 +270,7 @@ function App() {
             <button onClick={()=>setPage("directory")}>Student Directory</button>
             {currentUser.role==="student"&&<button onClick={()=>setPage("preferences")}>Job Preferences</button>}
           </div>
-          <AssistantChat />
+          <AssistantChat user={currentUser} onUnauthorized={handleUnauthorized} />
         </AppShell>
     );
   }

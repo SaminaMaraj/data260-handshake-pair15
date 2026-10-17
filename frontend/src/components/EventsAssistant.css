@@ -83,3 +83,14 @@
   .assistant-composer-footer > div { width: 100%; }
   .assistant-composer-footer button { flex-grow: 1; }
 }
+
+/* Authenticated replies and explicit, server-issued approval controls. */
+.assistant-message-row.is-assistant { justify-content: flex-start; }
+.assistant-answer-bubble { max-width: 85%; min-width: 0; padding: var(--space-3) var(--space-4); background: var(--page-bg); border: 1px solid var(--border); border-radius: 14px 14px 14px 4px; color: var(--text); }
+.assistant-answer-bubble > span { font-size: 11px; font-weight: 750; }
+.assistant-answer-bubble p { margin: 5px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.assistant-confirmation { margin: var(--space-4) var(--space-5); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--orange-light); }
+.assistant-confirmation h3 { font-size: 17px; }
+.assistant-confirmation p { font-size: 13px; }
+.assistant-confirmation > div { display: flex; gap: var(--space-3); }
+.assistant-error { margin: var(--space-4) var(--space-5); padding: var(--space-3); border-left: 3px solid var(--orange); overflow-wrap: anywhere; }

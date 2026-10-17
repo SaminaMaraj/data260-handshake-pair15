@@ -100,7 +100,7 @@ def test_routes_and_openapi():
                   for op in methods.values() if isinstance(op, dict) and 'operationId' in op]
     assert len(operations) == len(set(operations))
     assert 'post' in schema['paths']['/assistant/chat']
-    assert len(schema['paths']) == 44
+    assert len(schema['paths']) == 45
 
 
 def test_authentication_and_cors(api):
@@ -261,10 +261,8 @@ def test_assistant_confirmation_gate_preserves_saved_items(api, monkeypatch):
     for value in (False, None, 'true', 1):
         assert not confirm_action('save_job_or_event', {'confirmed': value})
         result = tools.save_job_or_event(3, event_id=eid, confirmed=value)
-        assert 'Confirmation required' in result
+        assert 'required' in result
         assert not db.scalars(select(SavedItem)).all()
-    assert confirm_action('save_job_or_event', {'confirmed': True})
-    assert 'Saved successfully' in tools.save_job_or_event(3, event_id=eid, confirmed=True)
-    assert 'already saved' in tools.save_job_or_event(3, event_id=eid, confirmed=True)
-    rows = db.scalars(select(SavedItem)).all()
-    assert len(rows) == 1 and rows[0].student_id == 3 and rows[0].event_id == eid
+    assert not confirm_action('save_job_or_event', {'confirmed': True})
+    assert 'required' in tools.save_job_or_event(3, event_id=eid, confirmed=True)
+    assert not db.scalars(select(SavedItem)).all()

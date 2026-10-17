@@ -2,11 +2,9 @@ import json
 from datetime import date
 
 from sqlalchemy import String, cast, select
-from sqlalchemy.orm import Session
 
-from app.assistant.confirm import confirm_action
 from app.database import SessionLocal
-from app.models.additional import Event, SavedItem, StudentPreference
+from app.models.additional import Event, StudentPreference
 from app.models.core import Company, Job, Student
 
 
@@ -242,80 +240,8 @@ def save_job_or_event(
     event_id: int | None = None,
     confirmed: bool = False,
 ) -> str:
-    db = SessionLocal()
-
-    try:
-        if (job_id is None) == (event_id is None):
-            return "Provide exactly one job_id or event_id."
-
-        confirmation_arguments = {
-            "student_id": student_id,
-            "job_id": job_id,
-            "event_id": event_id,
-            "confirmed": confirmed,
-        }
-
-        if not confirm_action(
-            "save_job_or_event",
-            confirmation_arguments,
-        ):
-            item_type = "job" if job_id is not None else "event"
-            item_id = job_id if job_id is not None else event_id
-
-            return (
-                f"Confirmation required before saving {item_type} "
-                f"{item_id}."
-            )
-
-        if db.get(Student, student_id) is None:
-            return "Student does not exist."
-
-        if job_id is not None:
-            if db.get(Job, job_id) is None:
-                return "Job does not exist."
-
-            existing = db.scalar(
-                select(SavedItem).where(
-                    SavedItem.student_id == student_id,
-                    SavedItem.job_id == job_id,
-                )
-            )
-
-            if existing is not None:
-                return "This job is already saved."
-
-        if event_id is not None:
-            if db.get(Event, event_id) is None:
-                return "Event does not exist."
-
-            existing = db.scalar(
-                select(SavedItem).where(
-                    SavedItem.student_id == student_id,
-                    SavedItem.event_id == event_id,
-                )
-            )
-
-            if existing is not None:
-                return "This event is already saved."
-
-        saved_item = SavedItem(
-            student_id=student_id,
-            job_id=job_id,
-            event_id=event_id,
-        )
-
-        db.add(saved_item)
-        db.commit()
-        db.refresh(saved_item)
-
-        return f"Saved successfully. Saved item id is {saved_item.id}."
-
-    except Exception as error:
-        db.rollback()
-        return f"Save error: {error}"
-
-    finally:
-        db.close()
+    # This callable is exposed to the model; even confirmed=True cannot authorize it.
+    return "Explicit approval through /assistant/confirm is required. Nothing was saved."
 
 
 TOOL_SCHEMAS = [
@@ -412,18 +338,16 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "save_job_or_event",
             "description": (
-                "Use this only after the student explicitly confirms "
-                "saving a job or event."
+                "Request approval to save a job or event. No write occurs until "
+                "the student approves through the confirmation controls."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "student_id": {"type": "integer"},
                     "job_id": {"type": "integer"},
                     "event_id": {"type": "integer"},
-                    "confirmed": {"type": "boolean"},
                 },
-                "required": ["student_id"],
+                "additionalProperties": False,
             },
         },
     },
@@ -441,6 +365,8 @@ TOOL_FUNCTIONS = {
 
 def execute_tool(tool_name: str, arguments: dict) -> str:
     try:
+        if tool_name == "save_job_or_event":
+            return "Explicit approval through /assistant/confirm is required. Nothing was saved."
         function = TOOL_FUNCTIONS.get(tool_name)
 
         if function is None:

@@ -1,15 +1,7 @@
-def confirm_action(
-    tool_name,
-    arguments,
-    auto_approve=False,
-):
-    """
-    Require explicit confirmation before saving a job or event.
-    """
-    if tool_name != "save_job_or_event":
-        return True
+"""Model arguments never constitute authenticated user approval.
 
-    if auto_approve:
-        return True
-
-    return arguments.get("confirmed") is True
+Persistent approvals are issued and consumed by app.assistant.pending.
+This compatibility helper can authorize only read-only tools.
+"""
+def confirm_action(tool_name, arguments, auto_approve=False):
+    return tool_name != "save_job_or_event"
