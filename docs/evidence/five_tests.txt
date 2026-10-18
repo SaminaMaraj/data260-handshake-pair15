@@ -1,0 +1,156 @@
+DATA260 Lab 1 Pair 15: five required assistant tests
+Run at: 2026-10-17T18:26:51
+Git commit: 6567406
+Model: qwen3:8b
+MAX_ITERATIONS=6 MAX_REPAIRS=1 MAX_TEXT_REPAIRS=1 WRAP_UNTRUSTED=True
+Student: lowest student_id with saved preferences = 1 (preferred city: Sunnyvale)
+Companies matching 'Nonexistent Labs' in the database: 0
+
+======================================================================
+TEST 1: Internship in the student's city
+======================================================================
+USER: Find an internship in my city.
+CONVERSATION MESSAGES PASSED IN: 0
+TOOL_CALL get_student_preferences {"student_id": 1}
+TOOL_RESULT {"student_id": 1, "preferred_city": "Sunnyvale", "preferred_category": "internship", "minimum_salary": "70000.00", "preferred_skills": ["Python", "SQL"], "remote_only": false}
+TOOL_CALL search_jobs {"category": "internship", "city": "Sunnyvale"}
+TOOL_RESULT JOB_IDS: [51, 25, 74, 166, 291, 106, 211, 53, 200, 206, 264, 26, 233, 30, 116, 130, 2, 218, 288, 170]
+JOBS: [{"job_id": 51, "title": "Research Assistant", "company": "Pair 15 Company 0018", "location": "Sunnyvale", "category": "internship", "salary": "83302.98", "deadline": "2026-10-31", "is_remote": false, "skills": ["Python", "SQL", "FastAPI"]}, {"job_id": 25, "title": "Product Analyst", "company": "Pair 15 Company 0031", "location": "Sunnyvale", "category": "internship", "salary": "116339.42", "deadline": "2026-11-08", "is_remote": true, "skills": ["Machine Learning", "React", "MySQL"]}, {"job_id": 74, "title": "Data Analyst", "company": "Pair 15 Company 0049", "location": "Sunnyvale", "category": "internship", "salary": "115530.49", "deadline": "2026-11-09", "is_remote": false, "skills": ["Machine Learning", "Statistics", "MySQL"]}, {"job_id": 166, "title": "Data Analyst", "company": "Pair 15 Company 0009", "location": "Sunnyvale", "category": "internship", "salary": "77566.01", "deadline": "2026-11-10", "is_remote": false, "skills": ["SQL", "Python", "React"]}, {"job_id": 291, "title": "Product Analyst", "company": "Pair 15 Company 0045", "location": "Sunnyvale", "category": "internship", "salary": "74588.82", "deadline": "2026-11-11", "is_remote": false, "skills": ["Python", "FastAPI", "SQL"]}, {"job_id": 106, "title": "Machine Learning Intern", "company": "Pair 15 Company 0026", "location": "Sunnyvale", "category": "internship", "salary": "58491.28", "deadline": "2026-11-12", "is_remote": false, "skills": ["FastAPI", "Machine Learning", "Statistics"]}, {"job_id": 211, "title": "Software Engineer", "company": "Pair 15 Company 0019", "location": "Sunnyvale", "category": "internship", "salary": "93450.77", "deadline": "2026-11-14", "is_remote": true, "skills": ["React", "SQL", "Statistics"]}, {"job_id": 53, "title": "Machine Learning Intern", "company": "Pair 15 Company 0041", "location": "Sunnyvale", "category": "internship", "salary": "62444.67", "deadline": "2026-11-28", "is_remote": false, "skills": ["SQL", "MySQL", "React"]}, {"job_id": 200, "title": "Machine Learning Intern", "company": "Pair 15 Company 0040", "location": "Sunnyvale", "category": "internship", "salary": "67493.77", "deadline": "2026-11-28", "is_remote": true, "skills": ["SQL", "Python", "Machine Learning"]}, {"job_id": 206, "title": "Product Analyst", "company": "Pair 15 Company 0021", "location": "Sunnyvale", "category": "internship", "salary": "119986.81", "deadline": "2026-12-01", "is_remote": true, "skills": ["Python", "React", "SQL"]}, {"job_id": 264, "title": "Research Assistant", "company": "Pair 15 Company 0018", "location": "Sunnyvale", "category": "internship", "salary": "134696.13", "deadline": "2026-12-03", "is_remote": false, "skills": ["React", "Python", "MySQL"]}, {"job_id": 26, "title": "Product Analyst", "company": "Pair 15 Company 0030", "location": "Sunnyvale", "category": "internship", "salary": "77409.18", "deadline": "2026-12-06", "is_remote": false, "skills": ["MySQL", "SQL", "FastAPI"]}, {"job_id": 233, "title": "Software Engineer", "company": "Pair 15 Company 0018", "location": "Sunnyvale", "category": "internship", "salary": "103909.65", "deadline": "2026-12-06", "is_remote": true, "skills": ["React", "Machine Learning", "MySQL"]}, {"job_id": 30, "title": "Machine Learning Intern", "company": "Pair 15 Company 0036", "location": "Sunnyvale", "category": "internship", "salary": "81369.79", "deadline": "2026-12-13", "is_remote": false, "skills": ["MySQL", "Statistics", "FastAPI"]}, {"job_id": 116, "title": "Software Engineer", "company": "Pair 15 Company 0042", "location": "Sunnyvale", "category": "internship", "salary": "128981.14", "deadline": "2026-12-14", "is_remote": true, "skills": ["FastAPI", "Statistics", "React"]}, {"job_id": 130, "title": "Software Engineer", "company": "Pair 15 Company 0035", "location": "Sunnyvale", "category": "internship", "salary": "104567.07", "deadline": "2026-12-16", "is_remote": true, "skills": ["SQL", "Machine Learning", "Python"]}, {"job_id": 2, "title": "Software Engineer", "company": "Pair 15 Company 0015", "location": "Sunnyvale", "category": "internship", "salary": "71687.22", "deadline": "2026-12-26", "is_remote": true, "skills": ["Machine Learning", "Python", "Statistics"]}, {"job_id": 218, "title": "Software Engineer", "company": "Pair 15 Company 0037", "location": "Sunnyvale", "category": "internship", "salary": "72892.60", "deadline": "2027-01-06", "is_remote": true, "skills": ["MySQL", "Statistics", "React"]}, {"job_id": 288, "title": "Machine Learning Intern", "company": "Pair 15 Company 0044", "location": "Sunnyvale", "category": "internship", "salary": "98410.34", "deadline": "2027-01-10", "is_remote": false, "skills": ["FastAPI", "MySQL", "SQL"]}, {"job_id": 170, "title": "Data Analyst", "company": "Pair 15 Company 0036", "location": "Sunnyvale", "category": "internship", "salary": "89931.96", "deadline": "2027-01-13", "is_remote": true, "skills": ["Statistics", "FastAPI", "SQL"]}]
+TOTAL_TOOL_CALLS 2
+STATUS: completed
+FAILURES: []
+TOOL_CALLS: 2
+ITERATIONS: 3
+FINAL ANSWER:
+Here are internships in Sunnyvale:
+
+**Top Salaries:**
+- Research Assistant (Pair 15 Company 0018): $134,696.13/year
+- Product Analyst (Pair 15 Company 0021): $119,986.81/year
+- Software Engineer (Pair 15 Company 0042): $128,981.14/year
+
+**Remote Options:**
+- Product Analyst (Pair 15 Company 0031)
+- Software Engineer (Pair 15 Company 0019)
+- Machine Learning Intern (Pair 15 Company 0040)
+- Software Engineer (Pair 15 Company 0037)
+
+Would you like to rank these by salary or filter further?
+RUBRIC CHECK [yes] get_student_preferences was the first tool call
+RUBRIC CHECK [yes] a search_jobs call used the preferred city
+
+======================================================================
+TEST 2: Remote data science internship
+======================================================================
+USER: Find a remote data science internship.
+CONVERSATION MESSAGES PASSED IN: 0
+TOOL_CALL search_jobs {"category": "internship", "remote_only": true, "title": "data science"}
+TOOL_RESULT No matching jobs were found.
+TOTAL_TOOL_CALLS 1
+STATUS: completed
+FAILURES: []
+TOOL_CALLS: 1
+ITERATIONS: 2
+FINAL ANSWER:
+No remote data science internships were found matching your criteria. Would you like to adjust your search parameters (e.g., relax location requirements, different skill focus, or broader job title terms)?
+RUBRIC CHECK [yes] search_jobs filtered by category
+RUBRIC CHECK [yes] search_jobs filtered by location or remote status
+RUBRIC CHECK [no] search_jobs filtered by skills
+
+======================================================================
+TEST 3: Computer science event next month
+======================================================================
+USER: Find an event for computer science students next month.
+CONVERSATION MESSAGES PASSED IN: 0
+TOOL_CALL search_events {"eligibility": "computer science students", "date_from": "2026-11-01", "date_to": "2026-11-30"}
+TOOL_RESULT [{"id": 3, "event_name": "Data Analytics Information Session 3", "description": "A Pair 15 career and recruiting event for students.", "event_date": "2026-11-03", "event_time": "12:00:00", "location": "Sunnyvale", "eligibility": "Computer Science students"}, {"id": 39, "event_name": "Resume Review Event 39", "description": "A Pair 15 career and recruiting event for students.", "event_date": "2026-11-04", "event_time": "12:00:00", "location": "Palo Alto", "eligibility": "Computer Science students"}, {"id": 86, "event_name": "Career Workshop 86", "description": "A Pair 15 career and recruiting event for students.", "event_date": "2026-11-24", "event_time": "10:00:00", "location": "Palo Alto", "eligibility": "Computer Science students"}, {"id": 84, "event_name": "Technology Networking Event 84", "description": "A Pair 15 career and recruiting event for students.", "event_date": "2026-11-25", "event_time": "10:00:00", "location": "Cupertino", "eligibility": "Computer Science students"}, {"id": 36, "event_name": "Data Analytics Information Session 36", "description": "A Pair 15 career and recruiting event for students.", "event_date": "2026-11-28", "event_time": "12:00:00", "location": "Palo Alto", "eligibility": "Computer Science students"}]
+TOTAL_TOOL_CALLS 1
+STATUS: completed
+FAILURES: []
+TOOL_CALLS: 1
+ITERATIONS: 2
+FINAL ANSWER:
+Here are the computer science student events happening in November 2026:
+
+1. **Data Analytics Information Session 3**  
+   📅 2026-11-03 @ 12:00:00  
+   📍 Sunnyvale  
+
+2. **Resume Review Event 39**  
+   📅 2026-11-04 @ 12:00:00  
+   📍 Palo Alto  
+
+3. **Career Workshop 86**  
+   📅 2026-11-24 @ 10:00:00  
+   📍 Palo Alto  
+
+4. **Technology Networking Event 84**  
+   📅 2026-11-25 @ 10:00:00  
+   📍 Cupertino  
+
+5. **Data Analytics Information Session 36**  
+   📅 2026-11-28 @ 12:00:00  
+   📍 Palo Alto  
+
+Would you like to save any of these events, or refine the search further?
+RUBRIC CHECK [yes] search_events filtered by date
+RUBRIC CHECK [yes] search_events filtered by eligibility
+
+======================================================================
+TEST 4: Follow-up in the same conversation (higher paying)
+======================================================================
+USER: Make it higher paying.
+CONVERSATION MESSAGES PASSED IN: 6
+TOOL_CALL rank_jobs {"job_ids": [51, 25, 74, 166, 291, 106, 211, 53, 200, 206, 264, 26, 233, 30, 116, 130, 2, 218, 288, 170], "limit": 10}
+TOOL_RESULT {"ranked_by": "salary, highest first", "jobs": [{"job_id": 264, "title": "Research Assistant", "company": "Pair 15 Company 0018", "location": "Sunnyvale", "category": "internship", "salary": "134696.13", "deadline": "2026-12-03", "is_remote": false, "skills": ["React", "Python", "MySQL"]}, {"job_id": 116, "title": "Software Engineer", "company": "Pair 15 Company 0042", "location": "Sunnyvale", "category": "internship", "salary": "128981.14", "deadline": "2026-12-14", "is_remote": true, "skills": ["FastAPI", "Statistics", "React"]}, {"job_id": 206, "title": "Product Analyst", "company": "Pair 15 Company 0021", "location": "Sunnyvale", "category": "internship", "salary": "119986.81", "deadline": "2026-12-01", "is_remote": true, "skills": ["Python", "React", "SQL"]}, {"job_id": 25, "title": "Product Analyst", "company": "Pair 15 Company 0031", "location": "Sunnyvale", "category": "internship", "salary": "116339.42", "deadline": "2026-11-08", "is_remote": true, "skills": ["Machine Learning", "React", "MySQL"]}, {"job_id": 74, "title": "Data Analyst", "company": "Pair 15 Company 0049", "location": "Sunnyvale", "category": "internship", "salary": "115530.49", "deadline": "2026-11-09", "is_remote": false, "skills": ["Machine Learning", "Statistics", "MySQL"]}, {"job_id": 130, "title": "Software Engineer", "company": "Pair 15 Company 0035", "location": "Sunnyvale", "category": "internship", "salary": "104567.07", "deadline": "2026-12-16", "is_remote": true, "skills": ["SQL", "Machine Learning", "Python"]}, {"job_id": 233, "title": "Software Engineer", "company": "Pair 15 Company 0018", "location": "Sunnyvale", "category": "internship", "salary": "103909.65", "deadline": "2026-12-06", "is_remote": true, "skills": ["React", "Machine Learning", "MySQL"]}, {"job_id": 288, "title": "Machine Learning Intern", "company": "Pair 15 Company 0044", "location": "Sunnyvale", "category": "internship", "salary": "98410.34", "deadline": "2027-01-10", "is_remote": false, "skills": ["FastAPI", "MySQL", "SQL"]}, {"job_id": 211, "title": "Software Engineer", "company": "Pair 15 Company 0019", "location": "Sunnyvale", "category": "internship", "salary": "93450.77", "deadline": "2026-11-14", "is_remote": true, "skills": ["React", "SQL", "Statistics"]}, {"job_id": 170, "title": "Data Analyst", "company": "Pair 15 Company 0036", "location": "Sunnyvale", "category": "internship", "salary": "89931.96", "deadline": "2027-01-13", "is_remote": true, "skills": ["Statistics", "FastAPI", "SQL"]}]}
+TOTAL_TOOL_CALLS 1
+STATUS: completed
+FAILURES: []
+TOOL_CALLS: 1
+ITERATIONS: 2
+FINAL ANSWER:
+Here are the **top-paying internships** in Sunnyvale:
+
+1. **Research Assistant** (Pair 15 Company 0018)  
+   $134,696.13/year | Sunnyvale | Deadline: 2026-12-03  
+
+2. **Software Engineer** (Pair 15 Company 0042)  
+   $128,981.14/year | Sunnyvale | Remote | Deadline: 2026-12-14  
+
+3. **Product Analyst** (Pair 15 Company 0021)  
+   $119,986.81/year | Sunnyvale | Remote | Deadline: 2026-12-01  
+
+4. **Product Analyst** (Pair 15 Company 0031)  
+   $116,339.42/year | Sunnyvale | Remote | Deadline: 2026-11-08  
+
+Would you like to save any of these, or refine further (e.g., filter by remote, skills, or salary range)?
+RUBRIC CHECK [yes] test 1 conversation was passed in
+RUBRIC CHECK [yes] the follow-up called rank_jobs or search_jobs
+
+======================================================================
+TEST 5: Company absent from the seed data
+======================================================================
+USER: Find a job at Nonexistent Labs.
+CONVERSATION MESSAGES PASSED IN: 0
+TOOL_CALL search_jobs {"company": "Nonexistent Labs"}
+TOOL_RESULT No matching jobs were found.
+TOTAL_TOOL_CALLS 1
+STATUS: completed
+FAILURES: []
+TOOL_CALLS: 1
+ITERATIONS: 2
+FINAL ANSWER:
+There are no current job openings at Nonexistent Labs in our system. You might want to check the company's website or LinkedIn for potential opportunities. Would you like help exploring similar companies or different roles instead?
+RUBRIC CHECK [yes] 'Nonexistent Labs' is absent from the database
+RUBRIC CHECK [yes] a search tool was called before answering
+
+======================================================================
+SUMMARY
+======================================================================
+TEST 1: status=completed tool_calls=2 failures=[]
+TEST 2: status=completed tool_calls=1 failures=[]
+TEST 3: status=completed tool_calls=1 failures=[]
+TEST 4: status=completed tool_calls=1 failures=[]
+TEST 5: status=completed tool_calls=1 failures=[]
+TESTS RUN: 5
+TOTAL TOOL CALLS: 6
