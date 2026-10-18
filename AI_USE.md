@@ -122,3 +122,24 @@ asks the student for it.
 TODO (Bhavana): describe your own AI assistant use for the frontend and
 integration work, with one incorrect output, how you detected it, and
 how you fixed it. Each partner must have their own entry.
+## Bhavana — AI Usage Disclosure
+
+**1. Frontend UI Styling and Layout:** AI assistance was used to suggest improvements to the React frontend's layout, spacing, and navy-and-orange color scheme.
+
+- *Detected: Minor inconsistencies in spacing, alignment, and visual styling across the Student and Company dashboards.*
+- *Corrected: Improved layout consistency, spacing, and styling while maintaining existing functionality.*
+
+**2. React Component Debugging:** AI assistance was used to identify possible causes of frontend rendering and navigation issues.
+
+- *Detected: Minor component rendering and navigation issues during frontend development.*
+- *Corrected: Reviewed suggested fixes and verified the affected components through testing.*
+
+**3. Frontend Testing and Validation:** AI assistance was used to interpret testing results and suggest troubleshooting approaches.
+
+- *Detected: Areas requiring verification through automated tests, ESLint, and production build checks.*
+- *Corrected: Validated the frontend with 13 passing automated tests, successful ESLint checks, and a successful Vite production build.*
+
+**4. UI Documentation:** AI assistance was used to improve the organization and clarity of frontend documentation.
+
+- *Detected: Opportunities to improve descriptions and presentation of implemented features.*
+- *Corrected: Organized descriptions and screenshots of the Student Portal, Company Portal, and AI Assistant interface.*
