@@ -273,16 +273,20 @@ python -m app.assistant.followup_test
 python -m app.assistant.confirm_flow_test scripted
 python -m app.assistant.confirm_flow_test decline
 python -m app.assistant.confirm_flow_test approve
-python -m app.assistant.reliability_run
+python -m app.assistant.reliability_run before
+python -m app.assistant.reliability_run after
+python -m app.assistant.five_tests_evidence
 ```
 
-Results are recorded in METRICS.md and RUN_LOG.txt.
+Results are recorded in METRICS.md and RUN_LOG.txt, and the saved outputs are in `docs/evidence/`.
 
 
 
 ### Final frontend status
 
-The React frontend is merged into `main`. The production build and ESLint checks pass. Browser end-to-end testing of the authenticated assistant chat and Yes/No confirmation flow is still pending.
+The React frontend is merged into `main`. The production build and ESLint checks pass.
+
+Bhavana tested the assistant chat and the Yes/No confirmation in the browser on her branch, `feature/navy-orange-ui`. That branch has the same chat panel but a different confirmation backend (pending saves are stored in the database, with a 10-minute timeout). So the browser screenshots are not a browser test of the exact `main` backend, which keeps pending saves in memory with a 15-minute timeout. The `main` confirmation flow was tested with scripts (`docs/evidence/confirmation_scripted_11_of_11.txt` and `confirmation_approve_7_of_7.txt`).
 
 The Part A pages—authentication, profiles, jobs, applications, resumes, events, directory, and company dashboard—are merged into `main`.
 

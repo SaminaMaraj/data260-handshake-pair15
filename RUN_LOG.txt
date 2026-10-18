@@ -118,8 +118,8 @@ All final tests were run locally against the Pair 15 FastAPI and MySQL setup.
       'malformed_arguments'].
     - Fix: JOB_IDS line in search_jobs results, job_id field name,
       clearer repair message, separate repair limits.
-    - Pending: the output of the final follow-up run is not saved in
-      docs/evidence/. Its success is shown only in report screenshots.
+    - The final follow-up result is in docs/evidence/five_tests.txt
+      (test 4, item 25).
     - In the after-repair reliability run (item 20), the follow-up turn
       still failed: the model wrote a rank_jobs request as text.
 
@@ -185,14 +185,33 @@ All final tests were run locally against the Pair 15 FastAPI and MySQL setup.
       sent to the model, saved items unchanged (4 before, 4 after),
       retry blocked, pending_id reuse rejected, the model's own
       auto_approve ignored, and a client system message dropped.
-    - Approval test: output not saved in docs/evidence/ yet; pending.
+    - Approval test: 7 of 7 checks passed
+      (docs/evidence/confirmation_approve_7_of_7.txt); saved items went
+      from 5 to 6 and the reused pending_id was rejected.
 
 23. Frontend: the React frontend with the connected AssistantChat
     (JWT, conversation history, Yes/No buttons) is merged on main.
-    Browser end-to-end test: pending until Bhavana supplies the
-    browser screenshots.
+    Browser test: Bhavana tested the chat and the Yes/No confirmation
+    in the browser on her branch, feature/navy-orange-ui. That branch
+    has the same chat panel but a different confirmation backend
+    (database-stored pending saves, 10-minute timeout), so it is not a
+    browser test of the exact main backend (in-memory, 15 minutes).
 
 24. Protected the remaining student routes (commits c977dd5 and
     d112a82): preference and saved-item routes now require a student
     login and check that the student in the request is the logged-in
     student; the legacy resume upload route was removed.
+
+25. Five required assistant tests, one complete run on main with
+    qwen3:8b (python -m app.assistant.five_tests_evidence; evidence:
+    docs/evidence/five_tests.txt, commit 7a9b2a2):
+    - 5 tests completed, 6 tool calls, 6 tool results, no failures or
+      repairs recorded
+    - Test 1: preferences first, then search in Sunnyvale; the final
+      salary list was not sorted correctly
+    - Test 2: category and remote filters used, but no skills filter;
+      partly meets the requirement; no match, nothing invented
+    - Test 3: date and eligibility filters; five events
+    - Test 4: test 1's conversation passed in; rank_jobs called with
+      test 1's job IDs
+    - Test 5: Nonexistent Labs not in the database; no job invented

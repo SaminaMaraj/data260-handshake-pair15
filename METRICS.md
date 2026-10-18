@@ -125,12 +125,31 @@ checks passed.**
 | Reused pending_id is rejected (invalid_pending) | Pass |
 | Reuse attempt saves nothing | Pass |
 
-Approval test (`confirm_flow_test approve`): the output is not saved in
-`docs/evidence/` yet, so it is not counted here. Pending: save the output
-to `docs/evidence/`.
+Approval test (`confirm_flow_test approve`), evidence
+`docs/evidence/confirmation_approve_7_of_7.txt`: **7 of 7 checks passed.**
+Student 1's saved items went from 5 to 6, another student was rejected,
+and the reused pending_id was rejected.
 
-## 5. Pending
+## 5. Five required assistant tests
 
-- Browser end-to-end test of the assistant chat and the Yes/No
-  confirmation: pending until Bhavana supplies the browser screenshots.
-- Approval-test output in `docs/evidence/`: pending.
+Evidence: `docs/evidence/five_tests.txt` (one run on main with qwen3:8b,
+student 1). It is the complete transcript and includes every tool call and
+tool result: 5 tests, 6 tool calls, 6 tool results, no failures or
+repairs recorded.
+
+| Test | Tool calls | Result |
+|---|---|---|
+| 1. Find an internship in my city. | get_student_preferences, then search_jobs (internship, Sunnyvale) | Meets the requirement. The final answer's "Top Salaries" list was not sorted correctly ($128,981.14 is listed below $119,986.81). |
+| 2. Find a remote data science internship. | search_jobs (internship, remote_only, title "data science") | Partly meets the requirement. Category and remote filters were used, but no skills filter. No match was found and none was invented. |
+| 3. Find an event for computer science students next month. | search_events (eligibility, 2026-11-01 to 2026-11-30) | Meets the requirement. Five November events, matching the tool result. |
+| 4. Make it higher paying. (same conversation as test 1) | rank_jobs with the 20 job IDs from test 1 | Meets the requirement. Test 1's conversation (6 messages) was passed in. |
+| 5. Find a job at Nonexistent Labs. | search_jobs (company) | Meets the requirement. The company is not in the database, and no job or company was invented. |
+
+## 6. Browser test
+
+Bhavana tested the assistant chat and the Yes/No confirmation in the
+browser on her branch, `feature/navy-orange-ui`. That branch has the same
+chat panel but a different confirmation backend (database-stored pending
+saves, 10-minute timeout). The browser screenshots are therefore not a
+browser test of the exact main backend (in-memory pending saves, 15-minute
+timeout), which was tested with the scripted and approval tests above.
