@@ -256,6 +256,8 @@ class StudentPreferenceCreate(BaseModel):
     minimum_salary: Decimal | None = None
     preferred_skills_json: list | None = None
     remote_only: bool = False
+    preferred_event_majors_json: list[str] | None = None
+    preferred_event_city: str | None = Field(default=None, max_length=100)
 
 
 class StudentPreferenceRead(StudentPreferenceCreate):

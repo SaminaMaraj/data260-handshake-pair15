@@ -15,6 +15,8 @@ from app.schemas import (
 
 router = APIRouter(tags=["Preferences and Saved Items"])
 
+EVENT_PREFERENCE_FIELDS = {"preferred_event_majors_json", "preferred_event_city"}
+
 
 def _require_same_student(student_id: int, user: User) -> None:
     """Reject requests that name a different student than the JWT."""
@@ -55,6 +57,10 @@ def save_student_preferences(
         db.add(preference)
     else:
         for field, value in preference_data.model_dump().items():
+            # Clients that do not send event preferences keep the
+            # stored values instead of clearing them.
+            if field in EVENT_PREFERENCE_FIELDS and field not in preference_data.model_fields_set:
+                continue
             setattr(preference, field, value)
 
     db.commit()

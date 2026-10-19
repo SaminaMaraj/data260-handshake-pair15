@@ -49,8 +49,11 @@ backend/
       confirm.py          confirm_action(tool_name, arguments, auto_approve=False)
       followup_test.py    Test 4: follow-up in the same conversation
       confirm_flow_test.py  Confirmation gate tests
-      reliability_run.py  20-turn reliability run
+      reliability_run.py  20-turn reliability run with chain-loss checks
+      five_tests_evidence.py  The five required assistant tests
+      injection_run.py    Prompt-injection test: the five verification queries, wrapper off and on
   seed_generator.py       Pair 15 seed generator (SEED = 15)
+  scripts/migrate_event_preferences.py  Adds the event-preference columns
   schema.sql
   tests/
 frontend/                 React application
@@ -122,6 +125,18 @@ python seed_generator.py
 `backend/scripts/seed_data.py` is a second, additive generator written
 during frontend integration. It was not used for the counts above.
 
+For a database created before event preferences were added, run the
+migration once from the `backend` folder:
+
+```bash
+python scripts/migrate_event_preferences.py          # add columns and fill empty rows
+python scripts/migrate_event_preferences.py --down   # undo: drop only the two new columns
+```
+
+It adds the nullable columns `preferred_event_majors_json` and
+`preferred_event_city` to `student_preferences` and fills only rows where
+both are empty, using each student's major and saved preferred city.
+
 ### 5. Ollama
 
 ```bash
@@ -157,7 +172,8 @@ http://127.0.0.1:9150.
 - Upcoming events: search, view details, register when eligible, view
   registered events
 - Student directory search
-- Saved jobs and job preferences
+- Saved jobs, job preferences, and event preferences (event preferences
+  are set through the API; the preferences page shows job fields only)
 - AI Assistant panel on the dashboard
 
 ### Company
@@ -197,11 +213,11 @@ never from the model.
 
 | Tool | Purpose |
 |---|---|
-| get_student_preferences | The signed-in student's saved preferences |
-| search_jobs | Filter jobs by title, company, category, city, salary, skills, deadline, remote status |
+| get_student_preferences | The signed-in student's saved job preferences and event preferences |
+| search_jobs | Filter jobs by title, company, category, city, salary, skills, deadline, remote status (for a field of work, the schema tells the model to use skills) |
 | rank_jobs | Sort jobs from the most recent search by salary |
 | get_job_details | One job with company details |
-| search_events | Upcoming events by name, city, date range, eligibility |
+| search_events | Upcoming events by name, city, date range, eligibility, major |
 | save_job_or_event | Save a job or event (gated by confirmation) |
 
 Every tool returns a string and catches its own errors.
@@ -223,7 +239,10 @@ tool, the loop re-prompts it once (`MAX_TEXT_REPAIRS = 1`).
 
 Each run returns a `failures` list (`malformed_arguments`,
 `unknown_tool`, `text_instead_of_tool`) used for the reliability table
-in METRICS.md. Setting both limits to 0 gives the "before repair"
+in METRICS.md. The reliability runner also records a tool call that fails
+because of an argument the tool does not accept as `malformed_arguments`,
+and adds `chain_lost` for three multi-step prompts when the chain is not
+completed. Setting both limits to 0 gives the "before repair"
 measurement with the same code.
 
 ### Prompt-injection defense
@@ -276,9 +295,21 @@ python -m app.assistant.confirm_flow_test approve
 python -m app.assistant.reliability_run before
 python -m app.assistant.reliability_run after
 python -m app.assistant.five_tests_evidence
+python -m app.assistant.injection_run
 ```
 
-Results are recorded in METRICS.md and RUN_LOG.txt, and the saved outputs are in `docs/evidence/`.
+Offline tests (no Ollama or MySQL needed):
+
+```bash
+cd backend
+python -m pytest tests/test_assistant_tools.py tests/test_event_preferences.py tests/test_preferences_authorization.py tests/test_event_integration.py tests/test_seed_data.py -q
+cd ../frontend
+node --test tests/*.mjs
+npm run build
+npm run lint
+```
+
+Results are recorded in METRICS.md and RUN_LOG.txt, and the saved outputs are in `docs/evidence/`. The final runs are `five_tests_v2.txt`, `migration_event_prefs_v2.txt`, `reliability_before_v3.txt`, `reliability_after_v3.txt`, and `injection_before_after_v4.txt`. The other evidence files are earlier runs kept for comparison.
 
 
 

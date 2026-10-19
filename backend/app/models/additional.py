@@ -136,6 +136,9 @@ class StudentPreference(Base):
     minimum_salary: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     preferred_skills_json: Mapped[list | None] = mapped_column(JSON)
     remote_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Event preferences (nullable, added by scripts/migrate_event_preferences.py)
+    preferred_event_majors_json: Mapped[list | None] = mapped_column(JSON)
+    preferred_event_city: Mapped[str | None] = mapped_column(String(100))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,

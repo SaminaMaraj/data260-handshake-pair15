@@ -164,7 +164,9 @@ def main():
     events3 = [args for name, args in r3["_new_calls"] if name == "search_events"]
     check("search_events filtered by date",
           any(a.get("date_from") or a.get("date_to") for a in events3))
-    check("search_events filtered by eligibility", any(a.get("eligibility") for a in events3))
+    check("search_events filtered by eligibility or major",
+          any(a.get("eligibility") or a.get("major") for a in events3))
+    check("search_events used the major parameter", any(a.get("major") for a in events3))
 
     # Test 4: same conversation as test 1
     r4 = run_test(4, "Follow-up in the same conversation (higher paying)", TEST_4,

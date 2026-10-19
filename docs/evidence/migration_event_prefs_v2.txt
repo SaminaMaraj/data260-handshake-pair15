@@ -1,0 +1,3 @@
+Added nullable student_preferences.preferred_event_majors_json.
+Added nullable student_preferences.preferred_event_city.
+Filled event preferences for 200 rows that had none.

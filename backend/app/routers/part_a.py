@@ -379,6 +379,8 @@ class PreferenceInput(BaseModel):
     minimum_salary: Decimal | None=Field(default=None,ge=0,max_digits=12,decimal_places=2)
     preferred_skills_json: list[str] | None=None
     remote_only: bool=False
+    preferred_event_majors_json: list[str] | None=None
+    preferred_event_city: str | None=Field(default=None,max_length=100)
 
 
 @router.get('/students/me/preferences',response_model=PreferenceInput)
@@ -391,7 +393,10 @@ def update_preferences(data: PreferenceInput,db: Session = Depends(get_db),user:
     if db.get(Student,user.id) is None: raise HTTPException(409,'Create your student profile first')
     row=db.get(StudentPreference,user.id)
     if row is None: row=StudentPreference(student_id=user.id);db.add(row)
-    for key,value in data.model_dump().items(): setattr(row,key,value)
+    for key,value in data.model_dump().items():
+        # Keep stored event preferences when the client does not send them.
+        if key.startswith('preferred_event_') and key not in data.model_fields_set: continue
+        setattr(row,key,value)
     db.commit();db.refresh(row)
     return row
 

@@ -226,7 +226,8 @@ def test_both_preference_routes_remain_reachable(api):
             'minimum_salary': '1000.00', 'preferred_skills_json': ['SQL'], 'remote_only': True}
     response = client.put('/students/me/preferences', headers=tokens[3], json=body)
     assert response.status_code == 200, response.text
-    assert client.get('/students/me/preferences', headers=tokens[3]).json() == body
+    saved = client.get('/students/me/preferences', headers=tokens[3]).json()
+    assert {key: saved[key] for key in body} == body
     response = client.get('/students/3/preferences', headers=tokens[3])
     assert response.status_code == 200
     assert response.json()['preferred_city'] == 'San Jose'

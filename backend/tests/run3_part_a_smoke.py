@@ -44,8 +44,8 @@ def main():
     assert req('GET',f'/profiles/{sid}/contact',token=ct)['email']==updated_email
     req('PUT','/users/me',422,st,{'email':'not-an-email'})
     pref={'preferred_city':'Palo Alto','preferred_category':'internship','minimum_salary':'3000.00','preferred_skills_json':['SQL'],'remote_only':True}
-    assert req('PUT','/students/me/preferences',token=st,body=pref)==pref
-    assert req('GET','/students/me/preferences',token=st)==pref
+    saved_pref=req('PUT','/students/me/preferences',token=st,body=pref);assert {k:saved_pref[k] for k in pref}==pref
+    saved_pref=req('GET','/students/me/preferences',token=st);assert {k:saved_pref[k] for k in pref}==pref
     req('PUT','/students/me/preferences',403,ct,pref)
     req('PUT','/students/me/preferences',422,st,{**pref,'minimum_salary':-1})
     req('POST','/users/register',422,body={'email':'invalidpass@example.com','password':'short','role':'student'})

@@ -146,6 +146,8 @@ CREATE TABLE student_preferences (
     minimum_salary DECIMAL(12,2),
     preferred_skills_json JSON,
     remote_only BOOLEAN NOT NULL DEFAULT FALSE,
+    preferred_event_majors_json JSON,
+    preferred_event_city VARCHAR(100),
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_preferences_student

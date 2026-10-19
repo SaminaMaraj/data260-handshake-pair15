@@ -38,6 +38,10 @@ def get_student_preferences(student_id: int) -> str:
                 "minimum_salary": preference.minimum_salary,
                 "preferred_skills": preference.preferred_skills_json,
                 "remote_only": preference.remote_only,
+                "event_preferences": {
+                    "preferred_majors": preference.preferred_event_majors_json,
+                    "preferred_city": preference.preferred_event_city,
+                },
             }
         )
 
@@ -299,10 +303,16 @@ def search_events(
     date_from: str | None = None,
     date_to: str | None = None,
     eligibility: str | None = None,
+    major: str | None = None,
 ) -> str:
     db = SessionLocal()
 
     try:
+        if major is not None:
+            if not isinstance(major, str) or len(major.strip()) > 100:
+                return "major must be text of at most 100 characters."
+            major = major.strip()
+
         statement = select(Event)
 
         if name:
@@ -342,6 +352,14 @@ def search_events(
         if eligibility:
             statement = statement.where(
                 Event.eligibility.ilike(f"%{eligibility}%")
+            )
+
+        # Event eligibility is stored as text ("History
+        # students") or as JSON listing eligible majors, so a
+        # case-insensitive text match covers both.
+        if major:
+            statement = statement.where(
+                Event.eligibility.ilike(f"%{major}%")
             )
 
         statement = statement.order_by(Event.event_date.asc())
@@ -515,14 +533,20 @@ TOOL_SCHEMAS = [
             "name": "search_jobs",
             "description": (
                 "Search jobs by title, company, category, city, "
-                "salary, skills, deadline, or remote status."
+                "salary, skills, deadline, or remote status. When the "
+                "student describes a field of work or study instead of "
+                "an exact job title, put the technical skills used in "
+                "that field in skill and leave title empty."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "title": {
                         "type": "string",
-                        "description": "Words in the job title.",
+                        "description": (
+                            "Words that appear in the job title. Use only "
+                            "when the student gives an actual job title."
+                        ),
                     },
                     "company": {
                         "type": "string",
@@ -544,7 +568,11 @@ TOOL_SCHEMAS = [
                     "skill": {
                         "type": "string",
                         "description": (
-                            "One skill or comma-separated skills."
+                            "Technical skills, comma-separated. A job "
+                            "matches if it lists any of them. For a field "
+                            "of work, list the skills that field uses "
+                            "(for example, web development: React, "
+                            "JavaScript)."
                         ),
                     },
                     "deadline_before": {
@@ -621,7 +649,7 @@ TOOL_SCHEMAS = [
             "name": "search_events",
             "description": (
                 "Search upcoming events by name, city, date range, "
-                "or student eligibility."
+                "student eligibility, or major."
             ),
             "parameters": {
                 "type": "object",
@@ -651,6 +679,14 @@ TOOL_SCHEMAS = [
                     "eligibility": {
                         "type": "string",
                         "description": "Required student eligibility.",
+                    },
+                    "major": {
+                        "type": "string",
+                        "description": (
+                            "Academic major the event is open to, for "
+                            "example \"History\". Matches events whose "
+                            "eligibility names that major."
+                        ),
                     },
                 },
             },

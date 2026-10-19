@@ -260,15 +260,22 @@ def make_seed_data():
 
         for student in students:
             if student.user_id not in preference_student_ids:
+                preferred_city = random_generator.choice(CITIES)
                 preference = StudentPreference(
                     student_id=student.user_id,
-                    preferred_city=random_generator.choice(CITIES),
+                    preferred_city=preferred_city,
                     preferred_category=random_generator.choice(
                         CATEGORIES
                     ),
                     minimum_salary=60000,
                     preferred_skills_json=["Python", "SQL"],
                     remote_only=False,
+                    # Event preferences reuse values already drawn so the
+                    # random sequence (and the rest of the seed) is unchanged.
+                    preferred_event_majors_json=(
+                        [student.major] if student.major else None
+                    ),
+                    preferred_event_city=preferred_city,
                 )
                 db.add(preference)
 
