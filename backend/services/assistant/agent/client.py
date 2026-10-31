@@ -33,11 +33,13 @@ class OllamaClient:
         self,
         messages: list[dict],
         tools: list[dict] | None = None,
+        response_format: str | None = None,
     ) -> dict:
         """
         Send messages and optional tool schemas to Ollama.
 
-        Returns the assistant message as a dictionary.
+        response_format="json" asks Ollama for a JSON-only reply (used by
+        memory consolidation). Returns the assistant message as a dictionary.
         """
         payload = {
             "model": self.model,
@@ -47,6 +49,9 @@ class OllamaClient:
 
         if tools:
             payload["tools"] = tools
+
+        if response_format == "json":
+            payload["format"] = "json"
 
         request = urllib.request.Request(
             url=f"{self.base_url}/api/chat",

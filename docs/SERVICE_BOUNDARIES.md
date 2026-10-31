@@ -94,5 +94,21 @@ python -m pytest tests/test_*.py -q             # all unit and parity tests
     and `on_status_changed`, called as `(row, old_status)`
   - `services/event/routes.py`: `on_registration_created`, called as
     `(registration, event)`
-- **Kafka message envelope:** `services/common/events.py` (next on Samina's list):
-  `{event_id, trace_id, type, key, payload, created_at}`.
+- **Kafka message envelope and topics:** `services/common/events.py`.
+  - Build messages with `events.make_event(type, key, payload, trace_id=...)`
+    and send them with `events.publisher().publish(topic, event)`.
+  - Consumers call `events.decode(raw)`. It raises `events.PoisonMessage` for a
+    message that can never succeed, which should go straight to the DLQ.
+  - Topics: `events.TOPICS`; dead-letter topic: `events.dlq(topic)`, giving
+    `p15.<name>.dlq` (12 topics in total).
+  - Set `KAFKA_BOOTSTRAP` (e.g. `p15-kafka:9092`) on every service. Without
+    it, publishing is a logged no-op, so services still start.
+
+## Seventh deployable: the memory worker (no HTTP port)
+
+`python -m services.assistant.memory_worker` consumes
+`p15.memory.consolidate`. It needs the same image as `p15-assistant`, plus
+`KAFKA_BOOTSTRAP`, `MONGO_URL`, `MONGO_DB` and `OLLAMA_BASE_URL`. It needs
+**no** Service and has no port. In Kubernetes, use a Deployment named
+`p15-memory-worker` with 1 replica. A liveness check can be
+`pgrep -f memory_worker`.

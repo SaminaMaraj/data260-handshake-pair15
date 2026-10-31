@@ -30,7 +30,11 @@ from services.common.routing import SERVICE_PORTS, owner_of
 HEALTH = {"/health", "/health/db"}
 MONOLITH_ONLY = {"/", "/health/db"}
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
-LAB2_ADDITIONS = {("POST", "/users/logout")}
+LAB2_ADDITIONS = {
+    ("POST", "/users/logout"),            # revoke the server session
+    ("POST", "/assistant/session/end"),   # memory layer 3 -> consolidation consumer
+    ("GET", "/assistant/memory"),         # learned memory for the UI
+}
 
 
 @pytest.fixture(autouse=True)
