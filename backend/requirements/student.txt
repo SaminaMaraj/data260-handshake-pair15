@@ -1,0 +1,5 @@
+-r base.txt
+# Resume (PDF) and profile-picture uploads.
+python-multipart
+pypdf
+Pillow

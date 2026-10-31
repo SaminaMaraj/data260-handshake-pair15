@@ -1,0 +1,4 @@
+-r base.txt
+# Kafka (memory consolidation) and Guardrail 2 schema validation.
+confluent-kafka>=2.3
+jsonschema

@@ -35,7 +35,10 @@ import { emptyFilters } from "./components/jobFilters";
 
 
 
-const API_URL = "http://127.0.0.1:9150";
+// Lab 2: in Docker/EKS the gateway serves this app and the API from the same
+// origin, so the build sets VITE_API_URL="" (relative URLs). Local `npm run dev`
+// keeps talking to the gateway on port 9150.
+const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9150";
 
 
 
@@ -73,7 +76,7 @@ function App() {
 
     const controller = new AbortController();
 
-    fetch(`${API_URL}/`, { signal: controller.signal })
+    fetch(`${API_URL}/health`, { signal: controller.signal })
 
       .then((response) => {
 

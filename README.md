@@ -30,25 +30,57 @@ Other local settings:
 Lab 2 splits the backend into six services on MongoDB, adds Kafka, assistant
 memory, guardrails and an evaluation harness. Details:
 `docs/SERVICE_BOUNDARIES.md`, `docs/MONGODB_SCHEMA.md`, `docs/MEMORY.md`,
-`docs/GUARDRAILS.md`.
+`docs/GUARDRAILS.md`, `docs/TRACING_AND_TOKENS.md`.
 
-From `backend/`, with MongoDB running (e.g. `docker run -d -p 27017:27017 mongo:7`):
+### Run the whole stack with Docker Compose
+
+```bash
+cp .env.example .env        # set JWT_SECRET_KEY:  python -c "import secrets; print(secrets.token_hex(32))"
+ollama serve & ollama pull qwen3:8b   # Ollama on the host (macOS GPU); see docker-compose.yml for a container option
+docker compose build        # p15-student ... p15-assistant, p15-seed, p15-frontend images
+docker compose up -d        # MongoDB, Kafka (KRaft) + topics, seed, 6 services, memory worker, gateway
+docker compose ps           # services "healthy"; p15-seed and p15-kafka-topics "exited (0)"
+open http://localhost:9150  # the app; the same port serves the API
+docker compose logs -f p15-assistant p15-memory-worker
+docker compose down         # add -v to delete the MongoDB/Kafka volumes
+```
+
+Seed logins: `p15.student.0001@example.com` (students `0001` to `0200`) and
+`p15.company.0001@example.com` (`0001` to `0050`), password `Pair15SeedPassword!`.
+
+### Tests and the evaluation harness
+
+From `backend/` (MongoDB reachable at `MONGO_URL`, e.g. the Compose one on `localhost:27017`):
 
 ```bash
 pip install -r ../requirements-dev.txt
-python scripts/migrate_to_mongo.py --from-seed --drop   # Pair 15 seed -> MongoDB
-bash scripts/run_services.sh                            # six services, ports 9151-9156
-python -m pytest tests/test_*.py -q                     # unit, parity and harness tests
+python -m pytest tests/test_*.py -q     # unit, parity, guardrail and harness tests
+python -m harness.agent_harness         # evaluation harness (one command)
 ```
 
-**Evaluation harness (one command):**
+The harness writes `harness/output/agent_harness.jsonl` and
+`harness/output/agent_harness_summary.md`.
+
+### Real-model evidence (stack running, from `backend/`)
 
 ```bash
-python -m harness.agent_harness
+export MONGO_URL=mongodb://127.0.0.1:27017 KAFKA_BOOTSTRAP=localhost:29092
+python scripts/memory_consolidation_report.py --student 1 --via-kafka | tee ../docs/evidence/memory_consolidation.txt
+python scripts/compaction_demo.py | tee ../docs/evidence/compaction_demo.txt
+python scripts/trace_report.py load --n 50 && python scripts/trace_report.py report --last 50 | tee ../docs/evidence/trace_report.txt
 ```
 
-It writes `harness/output/agent_harness.jsonl` and
-`harness/output/agent_harness_summary.md`.
+### JMeter (Part 5)
+
+```bash
+brew install jmeter
+python jmeter/make_data.py --tokens && python jmeter/validate_plan.py   # 10-second sanity check
+bash jmeter/run_all.sh                  # every endpoint and level (~45 min), then the summary
+HOST=<load-balancer-host> PORT=80 bash jmeter/run_all.sh   # against EKS
+```
+
+Results: `jmeter/results/summary.md`, `summary.csv`,
+`response_time_vs_concurrency.png` and an HTML dashboard per run.
 
 ## Technology stack
 

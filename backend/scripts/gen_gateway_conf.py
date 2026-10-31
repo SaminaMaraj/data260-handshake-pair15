@@ -26,12 +26,24 @@ def render(mode: str) -> str:
         "# Routes each API path to the owning p15 service (longest prefix wins).",
         "events {}",
         "http {",
+        "  include /etc/nginx/mime.types;" if mode == "docker" else "  # (no static files locally)",
         "  client_max_body_size 10m;  # PDF resume uploads",
         f"  server {{",
         f"    listen {PORT_BASE};",
-        "    location = /health { return 200 '{\"status\":\"ok\",\"service\":\"p15-gateway\"}'; "
-        "add_header Content-Type application/json; }",
+        "    location = /health { default_type application/json; return 200 "
+        "'{\"status\":\"ok\",\"service\":\"p15-gateway\","
+        "\"message\":\"Handshake Pair 15 API is running\"}'; }",
     ]
+    if mode == "docker":
+        # The React build is baked into this image (frontend/Dockerfile), so the
+        # app and the API share one origin: no CORS, one LoadBalancer on EKS.
+        lines += [
+            "    root /usr/share/nginx/html;",
+            "    location = / { try_files /index.html =404; add_header Cache-Control no-store; }",
+            "    location ^~ /assets/ { expires 7d; }",
+            "    location = /favicon.svg { }",
+            "    location = /icons.svg { }",
+        ]
     # nginx already prefers the longest matching prefix; "^~" stops regex
     # checks, and the "/prefix/" + "= /prefix" pair keeps /jobsearch from
     # matching /jobs.

@@ -1,4 +1,7 @@
-const API_URL = "http://127.0.0.1:9150";
+// Lab 2: in Docker/EKS the gateway serves this app and the API from the same
+// origin, so the build sets VITE_API_URL="" (relative URLs). Local `npm run dev`
+// keeps talking to the gateway on port 9150.
+const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9150";
 
 export async function apiRequest(path, { token, onUnauthorized, body, ...options } = {}) {
   const multipart = body instanceof FormData;

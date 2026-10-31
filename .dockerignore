@@ -1,0 +1,17 @@
+# Keep images small and secret-free.
+.git
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/.pytest_cache
+frontend/dist
+backend/uploads
+backend/harness/output
+docs
+*.md
+!frontend/README.md

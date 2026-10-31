@@ -1,0 +1,8 @@
+# Shared by every p15 service image (FastAPI + MongoDB + auth).
+fastapi
+uvicorn[standard]
+pydantic[email]
+pymongo>=4.6
+PyJWT
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0

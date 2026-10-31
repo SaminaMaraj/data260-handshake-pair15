@@ -1,18 +1,255 @@
+# Handshake Pair 15 - Lab 2 stack (prefix p15, port base 9150).
+#
+#   cp .env.example .env            # then set JWT_SECRET_KEY (32+ random chars)
+#   docker compose build
+#   docker compose up -d
+#   docker compose ps               # every service "healthy"; seed/topics "exited (0)"
+#   open http://localhost:9150      # React app + API through the gateway
+#   docker compose logs -f p15-assistant p15-memory-worker
+#   docker compose down             # add -v to also delete the data volumes
+#
+# Ollama: by default the assistant uses Ollama running on the host
+# (host.docker.internal:11434), because Docker on macOS cannot use the GPU.
+# On Linux or for a fully containerised run:  docker compose --profile ollama up -d
+# and set OLLAMA_BASE_URL=http://p15-ollama:11434 in .env.
+
+name: p15
+
+x-service-env: &service-env
+  MONGO_URL: mongodb://p15-mongo:27017
+  MONGO_DB: ${MONGO_DB:-handshake_p15}
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env (32+ random characters)}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:9150,http://localhost:5173,http://127.0.0.1:5173}
+
+x-kafka-env: &kafka-env
+  KAFKA_BOOTSTRAP: p15-kafka:9092
+
+x-model-env: &model-env
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+  OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+
+x-after-seed: &after-seed
+  p15-mongo:
+    condition: service_healthy
+  p15-seed:
+    condition: service_completed_successfully
+
+x-after-seed-and-topics: &after-seed-and-topics
+  <<: *after-seed
+  p15-kafka-topics:
+    condition: service_completed_successfully
+
 services:
-  db:
-    image: mysql:8.4
-    container_name: handshake-pair15-db
+  # ---------------------------------------------------------------- data
+  p15-mongo:
+    image: mongo:7
+    container_name: p15-mongo
     restart: unless-stopped
+    ports: ["127.0.0.1:27017:27017"]       # host access for the evidence scripts
+    volumes: [p15-mongo-data:/data/db]
+    networks: [p15-net]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  p15-kafka:
+    image: apache/kafka:3.9.0
+    container_name: p15-kafka
+    restart: unless-stopped
+    ports: ["127.0.0.1:29092:29092"]       # host access: localhost:29092
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "3307:3306"
-    volumes:
-      - handshake_mysql_data:/var/lib/mysql
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller          # KRaft: no ZooKeeper
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://p15-kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@p15-kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"        # only the declared p15.* topics
+      KAFKA_NUM_PARTITIONS: 3
+    volumes: [p15-kafka-data:/var/lib/kafka/data]
+    networks: [p15-net]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  # Creates the 6 topics and their dead-letter topics (services/common/events.py), then exits.
+  p15-kafka-topics:
+    image: apache/kafka:3.9.0
+    container_name: p15-kafka-topics
+    depends_on:
+      p15-kafka:
+        condition: service_healthy
+    networks: [p15-net]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for t in application.created application.updated application.status_changed \
+                 event.registration_created job.created memory.consolidate; do
+          for name in p15.$$t p15.$$t.dlq; do
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server p15-kafka:9092 --create \
+              --if-not-exists --topic $$name --partitions 3 --replication-factor 1
+          done
+        done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server p15-kafka:9092 --list
+    restart: "no"
+
+  # Loads the Pair 15 seed (random_state 15) once; skips if data exists.
+  p15-seed:
+    build: {context: ., dockerfile: backend/scripts/Dockerfile.seed}
+    image: p15-seed:latest
+    container_name: p15-seed
+    environment:
+      MONGO_URL: mongodb://p15-mongo:27017
+      MONGO_DB: ${MONGO_DB:-handshake_p15}
+    depends_on:
+      p15-mongo:
+        condition: service_healthy
+    networks: [p15-net]
+    restart: "no"
+
+  # ---------------------------------------------------------------- services
+  p15-student:
+    build: {context: ., dockerfile: backend/services/student/Dockerfile}
+    image: p15-student:latest
+    container_name: p15-student
+    environment: *service-env
+    ports: ["127.0.0.1:9151:9151"]
+    depends_on: *after-seed
+    networks: [p15-net]
+    restart: unless-stopped
+
+  p15-company:
+    build: {context: ., dockerfile: backend/services/company/Dockerfile}
+    image: p15-company:latest
+    container_name: p15-company
+    environment: *service-env
+    ports: ["127.0.0.1:9152:9152"]
+    depends_on: *after-seed
+    networks: [p15-net]
+    restart: unless-stopped
+
+  p15-job:
+    build: {context: ., dockerfile: backend/services/job/Dockerfile}
+    image: p15-job:latest
+    container_name: p15-job
+    environment: {<<: [*service-env, *kafka-env]}
+    ports: ["127.0.0.1:9153:9153"]
+    depends_on: *after-seed-and-topics
+    networks: [p15-net]
+    restart: unless-stopped
+
+  p15-application:
+    build: {context: ., dockerfile: backend/services/application/Dockerfile}
+    image: p15-application:latest
+    container_name: p15-application
+    environment: {<<: [*service-env, *kafka-env]}
+    ports: ["127.0.0.1:9154:9154"]
+    depends_on: *after-seed-and-topics
+    networks: [p15-net]
+    restart: unless-stopped
+
+  p15-event:
+    build: {context: ., dockerfile: backend/services/event/Dockerfile}
+    image: p15-event:latest
+    container_name: p15-event
+    environment: {<<: [*service-env, *kafka-env]}
+    ports: ["127.0.0.1:9155:9155"]
+    depends_on: *after-seed-and-topics
+    networks: [p15-net]
+    restart: unless-stopped
+
+  p15-assistant:
+    build: {context: ., dockerfile: backend/services/assistant/Dockerfile}
+    image: p15-assistant:latest
+    container_name: p15-assistant
+    environment: {<<: [*service-env, *kafka-env, *model-env]}
+    ports: ["127.0.0.1:9156:9156"]
+    extra_hosts: ["host.docker.internal:host-gateway"]   # reach host Ollama on Linux too
+    depends_on: *after-seed-and-topics
+    networks: [p15-net]
+    restart: unless-stopped
+
+  # Kafka consumer for p15.memory.consolidate (same image as the assistant, no port).
+  p15-memory-worker:
+    image: p15-assistant:latest
+    container_name: p15-memory-worker
+    command: ["python", "-m", "services.assistant.memory_worker"]
+    environment: {<<: [*service-env, *kafka-env, *model-env], SERVICE_NAME: p15-memory-worker}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os,sys; sys.exit(0 if any(b'memory_worker' in open(f'/proc/{p}/cmdline','rb').read() for p in os.listdir('/proc') if p.isdigit()) else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      <<: *after-seed-and-topics
+      p15-assistant:
+        condition: service_started
+    networks: [p15-net]
+    restart: unless-stopped
+
+  # Kafka workers for the application/event/job topics go here (Bhavana, Part 2),
+  # e.g. p15-application-worker: image p15-application:latest, command
+  # ["python", "-m", "services.application.worker"], environment as p15-application.
+
+  # ---------------------------------------------------------------- web
+  # React build + API gateway (gateway/nginx.conf) on one origin.
+  p15-frontend:
+    build: {context: ., dockerfile: frontend/Dockerfile}
+    image: p15-frontend:latest
+    container_name: p15-frontend
+    ports: ["9150:9150"]
+    depends_on:
+      p15-student: {condition: service_healthy}
+      p15-company: {condition: service_healthy}
+      p15-job: {condition: service_healthy}
+      p15-application: {condition: service_healthy}
+      p15-event: {condition: service_healthy}
+      p15-assistant: {condition: service_healthy}
+    networks: [p15-net]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- optional
+  p15-ollama:
+    image: ollama/ollama:latest
+    container_name: p15-ollama
+    profiles: ["ollama"]
+    ports: ["127.0.0.1:11435:11434"]
+    volumes: [p15-ollama-data:/root/.ollama]
+    networks: [p15-net]
+    restart: unless-stopped
+
+  # Lab 1 MySQL, only to migrate real Lab 1 data:  docker compose --profile lab1 up -d p15-mysql
+  p15-mysql:
+    image: mysql:8.4
+    container_name: p15-mysql
+    profiles: ["lab1"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-handshake_pair15}
+      MYSQL_USER: ${MYSQL_USER:-lab1_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_me}
+    ports: ["127.0.0.1:3307:3306"]
+    volumes: [handshake_mysql_data:/var/lib/mysql]
+    networks: [p15-net]
+
+networks:
+  p15-net:
+    name: p15-net
 
 volumes:
+  p15-mongo-data:
+  p15-kafka-data:
+  p15-ollama-data:
   handshake_mysql_data:
-
+    name: data260-handshake-pair15_handshake_mysql_data   # the Lab 1 volume, kept

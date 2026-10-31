@@ -31,12 +31,14 @@ Lab 1 routes, each exactly once.
 
 ## Notes for Dockerfiles, Compose and Kubernetes (Bhavana)
 
-- **Build context:** `backend/`. All six images share the same code; only
-  the start command and port differ. One parameterized Dockerfile is fine,
-  but the handout asks for **a separate Dockerfile per service**, so write
-  six (e.g. `backend/services/<name>/Dockerfile`) that each `COPY app/ services/`
-  and run their own target:
-  `CMD ["uvicorn", "services.job.main:app", "--host", "0.0.0.0", "--port", "9153"]`
+- **Dockerfiles (done):** `backend/services/<name>/Dockerfile` (six services),
+  `backend/scripts/Dockerfile.seed` (seed job) and `frontend/Dockerfile` (React
+  build + nginx gateway). The build context is the **repository root**, e.g.
+  `docker build -f backend/services/job/Dockerfile -t p15-job:latest .`
+  Each image installs only `backend/requirements/<name>.txt`, copies only its
+  own service plus `services/common`, runs as a non-root user and has a
+  `HEALTHCHECK` on `/health`. `docker-compose.yml` runs the whole stack.
+  **Still open for Kubernetes (Bhavana):** manifests in `k8s/` using these images.
 - **Working directory** inside the image must be the `backend/` root so
   `import app...` and `import services...` resolve.
 - **Environment** (from `.env` in Compose and a Secret in Kubernetes, never

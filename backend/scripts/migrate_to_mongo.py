@@ -19,7 +19,9 @@ What it does
   * creates all indexes, then prints SQL vs Mongo counts and verifies them
 
 Idempotent: re-running replaces documents by _id instead of duplicating.
-Use --drop to start from an empty Mongo database.
+Use --drop to start from an empty Mongo database, or --if-empty to seed only
+a database that has no users yet (what Docker Compose and the Kubernetes seed
+Job do).
 
 Examples, from backend/:
     python scripts/migrate_to_mongo.py --from-seed --drop
@@ -163,11 +165,20 @@ def main():
     source.add_argument("--from-seed", action="store_true",
                         help="generate the Pair 15 seed data (SEED=15) and migrate it")
     parser.add_argument("--drop", action="store_true", help="empty the Mongo database first")
+    parser.add_argument("--if-empty", action="store_true",
+                        help="do nothing if the database already has users (safe to run on "
+                             "every `docker compose up` or as a Kubernetes Job)")
     args = parser.parse_args()
 
     os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
-    sql_url = run_seed_into_sqlite() if args.from_seed else args.sql_url
     from services.common import mongo
+    if args.if_empty:
+        existing = mongo.database().users.estimated_document_count()
+        if existing:
+            print(f"MongoDB {mongo.database().name} already has {existing} users; "
+                  "nothing to do (--if-empty).")
+            sys.exit(0)
+    sql_url = run_seed_into_sqlite() if args.from_seed else args.sql_url
     print(f"Migrating {sql_url.split('@')[-1]} -> MongoDB {mongo.database().name}")
     sys.exit(migrate(sql_url, args.drop))
 
