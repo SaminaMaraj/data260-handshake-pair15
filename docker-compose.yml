@@ -61,12 +61,14 @@ services:
     image: apache/kafka:3.9.0
     container_name: p15-kafka
     restart: unless-stopped
-    ports: ["127.0.0.1:29092:29092"]       # host access: localhost:29092 (the advertised EXTERNAL listener)
+    ports: ["127.0.0.1:29092:29092"]       # host access: 127.0.0.1:29092 (the advertised EXTERNAL listener)
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller          # KRaft: no ZooKeeper
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://p15-kafka:9092,EXTERNAL://localhost:29092
+      # 127.0.0.1, not "localhost": macOS resolves localhost to IPv6 (::1) first,
+      # but the port is published on IPv4 only.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://p15-kafka:9092,EXTERNAL://127.0.0.1:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
