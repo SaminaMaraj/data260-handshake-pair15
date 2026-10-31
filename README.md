@@ -25,6 +25,31 @@ Other local settings:
 | Frontend dev server | http://localhost:5173 |
 | Ollama model | qwen3:8b |
 
+## Lab 2 (in progress on branch `lab2/service-split`)
+
+Lab 2 splits the backend into six services on MongoDB, adds Kafka, assistant
+memory, guardrails and an evaluation harness. Details:
+`docs/SERVICE_BOUNDARIES.md`, `docs/MONGODB_SCHEMA.md`, `docs/MEMORY.md`,
+`docs/GUARDRAILS.md`.
+
+From `backend/`, with MongoDB running (e.g. `docker run -d -p 27017:27017 mongo:7`):
+
+```bash
+pip install -r ../requirements-dev.txt
+python scripts/migrate_to_mongo.py --from-seed --drop   # Pair 15 seed -> MongoDB
+bash scripts/run_services.sh                            # six services, ports 9151-9156
+python -m pytest tests/test_*.py -q                     # unit, parity and harness tests
+```
+
+**Evaluation harness (one command):**
+
+```bash
+python -m harness.agent_harness
+```
+
+It writes `harness/output/agent_harness.jsonl` and
+`harness/output/agent_harness_summary.md`.
+
 ## Technology stack
 
 - Frontend: React (Vite), Bootstrap

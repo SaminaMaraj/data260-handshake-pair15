@@ -29,6 +29,10 @@ class OllamaClient:
             )
         )
 
+        # Seconds per model call. The agent loop lowers it to whatever is
+        # left of the request deadline (Guardrail 7).
+        self.timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
+
     def complete(
         self,
         messages: list[dict],
@@ -65,7 +69,7 @@ class OllamaClient:
         try:
             with urllib.request.urlopen(
                 request,
-                timeout=180,
+                timeout=self.timeout,
             ) as response:
                 response_data = json.loads(
                     response.read().decode("utf-8")

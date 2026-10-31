@@ -591,6 +591,35 @@ TOOL_SCHEMAS = [
 ]
 
 
+# ---- strict schemas (Lab 2 Guardrail 2) -------------------------------------
+# The descriptions above are what the model reads; these constraints make the
+# same schemas strict enough to reject malformed calls before execution.
+DATE = {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$"}
+TEXT = {"type": "string", "minLength": 1, "maxLength": 100}
+CONSTRAINTS = {
+    "search_jobs": {"title": TEXT, "company": TEXT, "city": TEXT, "skill": TEXT,
+                    "salary_min": {"type": "number", "minimum": 0},
+                    "deadline_before": DATE},
+    "rank_jobs": {"job_ids": {"type": "array", "minItems": 1, "maxItems": 50,
+                              "items": {"type": "integer", "minimum": 1}},
+                  "limit": {"type": "integer", "minimum": 1, "maximum": 20}},
+    "get_job_details": {"job_id": {"type": "integer", "minimum": 1}},
+    "search_events": {"name": TEXT, "city": TEXT, "eligibility": TEXT, "major": TEXT,
+                      "date_from": DATE, "date_to": DATE},
+    "save_job_or_event": {"job_id": {"type": "integer", "minimum": 1},
+                          "event_id": {"type": "integer", "minimum": 1}},
+}
+
+for _tool in TOOL_SCHEMAS:
+    _params = _tool["function"]["parameters"]
+    _params["additionalProperties"] = False
+    for _name, _rule in CONSTRAINTS.get(_tool["function"]["name"], {}).items():
+        _params["properties"][_name] = {**_params["properties"][_name], **_rule}
+    if _tool["function"]["name"] == "save_job_or_event":
+        _params["oneOf"] = [{"required": ["job_id"], "not": {"required": ["event_id"]}},
+                            {"required": ["event_id"], "not": {"required": ["job_id"]}}]
+
+
 TOOL_FUNCTIONS = {
     "get_student_preferences": get_student_preferences,
     "search_jobs": search_jobs,
