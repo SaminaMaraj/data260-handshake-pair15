@@ -1,0 +1,5 @@
+# Test-only dependencies (not installed in the service images).
+-r requirements.txt
+pytest
+httpx
+mongomock

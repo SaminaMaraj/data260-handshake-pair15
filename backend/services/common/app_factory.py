@@ -1,35 +1,24 @@
-"""Build one FastAPI app per service from the shared Lab 1 routers.
+"""Build one FastAPI app per p15 service.
 
-Each service mounts only the routes that ROUTE_TABLE assigns to it, in the
-same order as the Lab 1 monolith (order matters: static paths such as
-/events/search must be registered before /events/{event_id}).
-
-Every service also exposes:
+Each service mounts its own routes module (services/<name>/routes.py),
+all on MongoDB. Every service also exposes:
   GET /health      liveness: the process is up (no dependencies checked)
-  GET /health/db   readiness: the service can reach its database
+  GET /health/db   readiness: the service can reach MongoDB
 and stamps each response with an X-Service header so the gateway, logs and
 screenshots show which service answered.
+
+Ownership of paths is declared once in services/common/routing.py;
+tests/test_service_split.py checks every mounted route against it.
 """
+import importlib
 import os
+from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
-from services.common.routing import SERVICE_PORTS, owner_of
-
-# Lab 1 routers in the monolith's include order (see app/main.py).
-# routers/resumes.py is intentionally absent: Lab 1 removed that
-# unprotected upload route from the app.
-def _lab1_routers():
-    from app.routers.core import router as core
-    from app.routers.applications import router as applications
-    from app.routers.assistant import router as assistant
-    from app.routers.events import router as events
-    from app.routers.part_a import router as part_a
-    from app.routers.preferences import router as preferences
-    return [core, applications, assistant, events, part_a, preferences]
-
+from services.common.mongo import database, ensure_indexes
+from services.common.routing import SERVICE_PORTS
 
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,"
@@ -37,33 +26,28 @@ DEFAULT_CORS_ORIGINS = (
 )
 
 
-def owned_router(service: str) -> APIRouter:
-    """An APIRouter holding only the Lab 1 routes owned by ``service``."""
-    owned = APIRouter()
-    for source in _lab1_routers():
-        for route in source.routes:
-            if owner_of(route.path) == service:
-                owned.routes.append(route)
-    return owned
-
-
 def build_service_app(service: str) -> FastAPI:
     if service not in SERVICE_PORTS:
         raise ValueError(f"Unknown service {service!r}")
+    routes = importlib.import_module(f"services.{service}.routes")
 
-    app = FastAPI(
-        title=f"Handshake Pair 15 - {service} service",
-        version="2.0.0",
-    )
+    @asynccontextmanager
+    async def lifespan(app):
+        try:
+            ensure_indexes(database())
+        except Exception as exc:  # readiness probe reports it; don't crash-loop
+            print(f"p15-{service}: could not ensure MongoDB indexes yet: {exc}")
+        startup = getattr(routes, "on_startup", None)
+        if startup:
+            startup()
+        yield
+
+    app = FastAPI(title=f"Handshake Pair 15 - {service} service", version="2.0.0",
+                  lifespan=lifespan)
 
     origins = os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[o.strip() for o in origins if o.strip()],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in origins if o.strip()],
+                       allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
     @app.middleware("http")
     async def stamp_service(request, call_next):
@@ -71,21 +55,19 @@ def build_service_app(service: str) -> FastAPI:
         response.headers["X-Service"] = f"p15-{service}"
         return response
 
-    app.include_router(owned_router(service))
+    app.include_router(routes.router)
 
     @app.get("/health", tags=["Health"])
     def health():
-        return {"status": "ok", "service": f"p15-{service}",
-                "port": SERVICE_PORTS[service]}
+        return {"status": "ok", "service": f"p15-{service}", "port": SERVICE_PORTS[service]}
 
     @app.get("/health/db", tags=["Health"])
     def health_db():
-        from app.database import engine
+        db = database()
         try:
-            with engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
+            db.command("ping")
         except Exception:
             raise HTTPException(status_code=503, detail="Database connection failed")
-        return {"status": "ok", "service": f"p15-{service}", "database": "reachable"}
+        return {"status": "ok", "service": f"p15-{service}", "database": db.name}
 
     return app

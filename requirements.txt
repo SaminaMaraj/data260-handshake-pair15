@@ -11,3 +11,4 @@ PyJWT
 
 pypdf
 Pillow
+pymongo>=4.6

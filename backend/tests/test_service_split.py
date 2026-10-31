@@ -2,13 +2,11 @@
 
 Proves that
   1. every Lab 1 route (method + path) is served by exactly one service,
-  2. no service exposes a route the monolith did not have,
-  3. static paths still win over path parameters inside each service
-     (e.g. /events/search is not swallowed by /events/{event_id}),
-  4. each service answers /health and stamps responses with X-Service,
-  5. a token issued by one service is accepted by another, and a route is
-     reachable only on the service that owns it.
+  2. the only routes Lab 1 did not have are the declared Lab 2 additions,
+  3. each route lives in the service that owns its path prefix,
+  4. each service answers /health and stamps responses with X-Service.
 
+Behavior of the routes is proven by tests/test_mongo_parity.py.
 Routes are read from each app's OpenAPI spec (no Lab 1 route is hidden
 from the schema), which works across FastAPI versions.
 
@@ -24,12 +22,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "isolated-service-split-test-key-not-for
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import BigInteger, create_engine
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from app.database import Base, get_db
 from app.main import app as monolith
 from services.common.app_factory import build_service_app
 from services.common.routing import SERVICE_PORTS, owner_of
@@ -37,11 +30,14 @@ from services.common.routing import SERVICE_PORTS, owner_of
 HEALTH = {"/health", "/health/db"}
 MONOLITH_ONLY = {"/", "/health/db"}
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
+LAB2_ADDITIONS = {("POST", "/users/logout")}
 
 
-@compiles(BigInteger, "sqlite")
-def _sqlite_bigint(element, compiler, **kwargs):
-    return "INTEGER"
+@pytest.fixture(autouse=True)
+def in_memory_mongo(monkeypatch):
+    """These checks need no real data: use the in-process fake, for this
+    module only (other test modules use a real MongoDB)."""
+    monkeypatch.setenv("MONGO_URL", "mongomock://")
 
 
 def api_routes(app):
@@ -56,16 +52,17 @@ def services():
     return {name: build_service_app(name) for name in SERVICE_PORTS}
 
 
+def lab1_routes():
+    return {p for p in api_routes(monolith) if p[1] not in MONOLITH_ONLY}
+
+
 def test_split_is_not_vacuous(services):
-    lab1 = api_routes(monolith) - {(m, p) for m, p in api_routes(monolith) if p in MONOLITH_ONLY}
-    assert len(lab1) >= 50, len(lab1)
+    assert len(lab1_routes()) >= 50
     for name, svc in services.items():
-        own = {p for p in api_routes(svc) if p[1] not in HEALTH}
-        assert own, f"{name} serves no routes"
+        assert {p for p in api_routes(svc) if p[1] not in HEALTH}, f"{name} serves no routes"
 
 
 def test_every_lab1_route_is_owned_by_exactly_one_service(services):
-    lab1 = {p for p in api_routes(monolith) if p[1] not in MONOLITH_ONLY}
     served = {}
     for name, svc in services.items():
         for pair in api_routes(svc):
@@ -73,12 +70,12 @@ def test_every_lab1_route_is_owned_by_exactly_one_service(services):
                 continue
             assert pair not in served, f"{pair} served by {served[pair]} and {name}"
             served[pair] = name
-    missing = lab1 - set(served)
-    extra = set(served) - lab1
+    missing = lab1_routes() - set(served)
+    extra = set(served) - lab1_routes() - LAB2_ADDITIONS
     assert not missing, f"Lab 1 routes lost in the split: {sorted(missing)}"
-    assert not extra, f"Routes not in Lab 1: {sorted(extra)}"
+    assert not extra, f"Undeclared new routes: {sorted(extra)}"
     for (_method, path), name in served.items():
-        assert owner_of(path) == name
+        assert owner_of(path) == name, f"{path} mounted in {name}, owned by {owner_of(path)}"
 
 
 def test_longest_prefix_ownership():
@@ -92,73 +89,16 @@ def test_longest_prefix_ownership():
 
 @pytest.mark.parametrize("name", list(SERVICE_PORTS))
 def test_health_and_service_header(name):
-    client = TestClient(build_service_app(name))
-    res = client.get("/health")
-    assert res.status_code == 200
-    assert res.json()["service"] == f"p15-{name}"
-    assert res.headers["X-Service"] == f"p15-{name}"
-    assert client.get("/health/db").status_code == 200
+    with TestClient(build_service_app(name)) as client:
+        res = client.get("/health")
+        assert res.status_code == 200
+        assert res.json()["service"] == f"p15-{name}"
+        assert res.headers["X-Service"] == f"p15-{name}"
+        assert client.get("/health/db").status_code == 200
 
 
-# ---- end-to-end across services on one shared (test) database ----------
-
-@pytest.fixture(scope="module")
-def shared_db(services):
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
-                           poolclass=StaticPool)
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-    def override():
-        db = Session()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    for svc in services.values():
-        svc.dependency_overrides[get_db] = override
-    yield {name: TestClient(svc) for name, svc in services.items()}
-    for svc in services.values():
-        svc.dependency_overrides.clear()
-
-
-@pytest.mark.parametrize("service,path", [
-    ("event", "/events/search"),          # vs /events/{event_id}
-    ("job", "/jobs/search"),              # vs /jobs/{job_id}
-    ("student", "/students/search"),      # vs /students/{user_id}
-    ("student", "/students/me/preferences"),  # vs /students/{student_id}/preferences
-])
-def test_static_paths_answer_like_the_monolith(shared_db, service, path):
-    # If /{id} were registered first, the service would answer 422/404
-    # where the Lab 1 monolith does not. Same status code = same route.
-    mono = TestClient(monolith)
-    monolith.dependency_overrides[get_db] = (
-        shared_db[service].app.dependency_overrides[get_db])
-    try:
-        expected = mono.get(path).status_code
-    finally:
-        monolith.dependency_overrides.clear()
-    got = shared_db[service].get(path).status_code
-    assert got == expected, f"{path}: service {got}, monolith {expected}"
-    assert got not in (404, 422)
-
-
-def test_token_from_student_service_works_on_job_service(shared_db):
-    student_svc, job_svc = shared_db["student"], shared_db["job"]
-    reg = student_svc.post("/users/register", json={
-        "email": "split-co@example.com", "password": "Sup3rSecret!pw",
-        "role": "company", "name": "Split Test Co", "location": "Sunnyvale"})
-    assert reg.status_code == 201, reg.text
-    login = student_svc.post("/users/login", json={
-        "email": "split-co@example.com", "password": "Sup3rSecret!pw"})
-    assert login.status_code == 200, login.text
-    token = login.json()["access_token"]
-    auth = {"Authorization": f"Bearer {token}"}
-
-    # Owned by the job service: works there ...
-    mine = job_svc.get("/companies/me/jobs", headers=auth)
-    assert mine.status_code == 200, mine.text
-    assert mine.headers["X-Service"] == "p15-job"
-    # ... and does not exist on the company service.
-    assert shared_db["company"].get("/companies/me/jobs", headers=auth).status_code in (404, 422)
+def test_route_lives_only_on_its_owner(services):
+    with TestClient(services["company"]) as company:
+        assert company.get("/companies/me/jobs").status_code in (404, 422)
+    with TestClient(services["job"]) as job:
+        assert job.get("/companies/me/jobs").status_code == 401  # exists, needs login

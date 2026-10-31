@@ -40,11 +40,20 @@ Lab 1 routes, each exactly once.
 - **Working directory** inside the image must be the `backend/` root so
   `import app...` and `import services...` resolve.
 - **Environment** (from `.env` in Compose and a Secret in Kubernetes, never
-  committed): `DATABASE_URL` (becomes `MONGO_URL` after the Mongo migration),
-  `JWT_SECRET_KEY` (32+ chars, **must be identical in every service**, or a
-  token from Student is rejected by Job), and `CORS_ORIGINS`
-  (comma-separated; defaults to the localhost dev ports).
-- **Assistant only:** `OLLAMA_HOST` (e.g. `http://p15-ollama:11434`).
+  committed):
+  - `MONGO_URL`, e.g. `mongodb://p15-mongo:27017`
+  - `MONGO_DB`, default `handshake_p15`
+  - `JWT_SECRET_KEY`: 32+ chars, and **it must be identical in every service**,
+    or a token from Student is rejected by Job
+  - `CORS_ORIGINS`: comma-separated; defaults to the localhost dev ports
+  - `DATABASE_URL` is no longer used by the services; only the migration
+    script reads a SQL URL
+- **Assistant only:** `OLLAMA_BASE_URL` (e.g. `http://p15-ollama:11434`) and
+  `OLLAMA_MODEL` (default `qwen3:8b`).
+- **Seeding Mongo in a container or pod:** run this once (e.g. as a Kubernetes Job):
+  `python scripts/migrate_to_mongo.py --from-seed --drop`
+  It generates the Pair 15 dataset (seed 15) and loads it: 250 users,
+  300 jobs, 1,500 applications and 100 events.
 - **Gateway:** the image is `nginx:alpine` with `gateway/nginx.conf` mounted at
   `/etc/nginx/nginx.conf`. Upstream hosts are already the `p15-<service>` DNS
   names, so it works unchanged in Compose (service names) and Kubernetes
@@ -55,17 +64,35 @@ Lab 1 routes, each exactly once.
 
 ## Running locally without Docker
 
-From `backend/`, with `DATABASE_URL` and `JWT_SECRET_KEY` set:
+From `backend/`, with `MONGO_URL` and `JWT_SECRET_KEY` set and MongoDB running:
 
 ```bash
 bash scripts/run_services.sh                    # six services on 9151–9156
 nginx -c "$PWD/../gateway/nginx.local.conf"     # gateway on 9150
-python -m pytest tests/test_service_split.py -q # 14 checks
+python -m pytest tests/test_*.py -q             # all unit and parity tests
 ```
 
-## Coming next (Samina)
+## For the Kafka workers (Bhavana)
 
-- **S3:** MongoDB collections and the data-access module that Kafka workers
-  call (`services/common/db.py`).
-- **S4:** the Kafka message envelope (`services/common/events.py`):
+- **Collections and storage rules:** `docs/MONGODB_SCHEMA.md`.
+- **Write through `services/common/repo.py`, not raw inserts,** so the worker
+  and the API produce identical documents:
+  - `repo.create_application(db, job_id=, student_id=, resume_id=, trace_id=, application_id=)`
+  - `repo.update_application_status(db, application_id=, company_id=, status=, trace_id=)`
+  - `repo.create_registration(db, event_id=, student_id=, user=, trace_id=, registration_id=)`
+
+  Each raises `repo.DomainError(status, message)` on a business error (e.g.
+  deadline passed); send that to the dead-letter topic instead of retrying.
+- **Idempotency is built in:** pass the id carried in the message
+  (`application_id=` / `registration_id=`). A replay hits the `_id` and
+  `(job_id, student_id)` unique indexes and raises a 409 `DomainError`
+  instead of creating a duplicate.
+- **Producer hooks.** The routes already call these lists after a successful
+  write, so a producer can be attached with no route edits:
+  - `services/job/routes.py`: `on_job_saved`, called as `(job, created=True|False)`
+  - `services/application/routes.py`: `on_application_created`, called as `(row)`,
+    and `on_status_changed`, called as `(row, old_status)`
+  - `services/event/routes.py`: `on_registration_created`, called as
+    `(registration, event)`
+- **Kafka message envelope:** `services/common/events.py` (next on Samina's list):
   `{event_id, trace_id, type, key, payload, created_at}`.
