@@ -46,7 +46,9 @@ services:
     image: mongo:7
     container_name: p15-mongo
     restart: unless-stopped
-    ports: ["127.0.0.1:27017:27017"]       # host access for the evidence scripts
+    # Host access for the evidence scripts. 27018, not 27017, so it never clashes
+    # with another MongoDB on the machine (override with MONGO_HOST_PORT).
+    ports: ["127.0.0.1:${MONGO_HOST_PORT:-27018}:27017"]
     volumes: [p15-mongo-data:/data/db]
     networks: [p15-net]
     healthcheck:
@@ -59,7 +61,7 @@ services:
     image: apache/kafka:3.9.0
     container_name: p15-kafka
     restart: unless-stopped
-    ports: ["127.0.0.1:29092:29092"]       # host access: localhost:29092
+    ports: ["127.0.0.1:29092:29092"]       # host access: localhost:29092 (the advertised EXTERNAL listener)
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller          # KRaft: no ZooKeeper

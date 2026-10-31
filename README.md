@@ -50,7 +50,7 @@ Seed logins: `p15.student.0001@example.com` (students `0001` to `0200`) and
 
 ### Tests and the evaluation harness
 
-From `backend/` (MongoDB reachable at `MONGO_URL`, e.g. the Compose one on `localhost:27017`):
+From `backend/` (MongoDB reachable at `MONGO_URL`; the Compose one is published on `localhost:27018`):
 
 ```bash
 pip install -r ../requirements-dev.txt
@@ -64,7 +64,7 @@ The harness writes `harness/output/agent_harness.jsonl` and
 ### Real-model evidence (stack running, from `backend/`)
 
 ```bash
-export MONGO_URL=mongodb://127.0.0.1:27017 KAFKA_BOOTSTRAP=localhost:29092
+export MONGO_URL=mongodb://127.0.0.1:27018 KAFKA_BOOTSTRAP=localhost:29092
 python scripts/memory_consolidation_report.py --student 1 --via-kafka | tee ../docs/evidence/memory_consolidation.txt
 python scripts/compaction_demo.py | tee ../docs/evidence/compaction_demo.txt
 python scripts/trace_report.py load --n 50 && python scripts/trace_report.py report --last 50 | tee ../docs/evidence/trace_report.txt
