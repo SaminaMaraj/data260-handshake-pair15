@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from services.common import tracing
 from services.common.mongo import database, ensure_indexes
 from services.common.routing import SERVICE_PORTS
 
@@ -50,9 +51,34 @@ def build_service_app(service: str) -> FastAPI:
                        allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
     @app.middleware("http")
-    async def stamp_service(request, call_next):
-        response = await call_next(request)
+    async def trace_request(request, call_next):
+        """trace_id per request (X-Trace-Id in/out), one JSON log line, and for
+        assistant calls a stored trace with per-stage timing."""
+        incoming = request.headers.get("x-trace-id") or request.headers.get("x-request-id")
+        name = f"{request.method} {request.url.path}"
+        trace, token = tracing.start(f"p15-{service}", name, incoming)
+        status, error = 500, None
+        try:
+            response = await call_next(request)
+            status = response.status_code
+        except Exception as exc:  # logged with the trace, then re-raised
+            error = f"{type(exc).__name__}: {exc}"
+            raise
+        finally:
+            total = trace.elapsed_ms()
+            outcome = trace.attributes.get("result_status") or (
+                "ok" if status < 400 else "client_error" if status < 500 else "error")
+            if request.url.path not in ("/health", "/health/db"):
+                tracing.log("request", method=request.method, path=request.url.path,
+                            status=status, outcome=outcome, ms=total,
+                            db_ms=round(trace.db_ms, 1), db_ops=trace.db_ops,
+                            **({"error": error} if error else {}))
+            if service == "assistant" and request.url.path.startswith("/assistant"):
+                tracing.save(database(), trace, status=outcome, http_status=status,
+                             error=error or trace.attributes.get("error"), total_ms=total)
+            tracing.finish(token)
         response.headers["X-Service"] = f"p15-{service}"
+        response.headers["X-Trace-Id"] = trace.trace_id
         return response
 
     app.include_router(routes.router)

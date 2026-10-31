@@ -61,7 +61,10 @@ def _client_for(url: str):
         import mongomock
         return mongomock.MongoClient()
     from pymongo import MongoClient
-    return MongoClient(url, serverSelectionTimeoutMS=3000, tz_aware=False)
+
+    from services.common.tracing import MONGO_TIMER
+    return MongoClient(url, serverSelectionTimeoutMS=3000, tz_aware=False,
+                       event_listeners=[MONGO_TIMER])
 
 
 def database():
@@ -177,6 +180,9 @@ def ensure_indexes(db) -> None:
     db[PROCESSED_EVENTS].create_index("processed_at")
     db[STUDENT_MEMORY].create_index([("student_id", ASCENDING), ("date", ASCENDING)])
     db[CONVERSATIONS].create_index([("student_id", ASCENDING), ("updated_at", DESCENDING)])
+    db["traces"].create_indexes([IndexModel("trace_id"), IndexModel([("at", DESCENDING)]),
+                                 IndexModel([("service", ASCENDING), ("at", DESCENDING)])])
+    db["token_usage"].create_index([("student_id", ASCENDING), ("at", DESCENDING)])
 
 
 def log_activity(db, user_id, action: str, **details) -> None:

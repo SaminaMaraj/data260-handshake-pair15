@@ -13,10 +13,12 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from services.assistant import memory
-from services.assistant.agent.loop import resume_pending_confirmation, run_assistant
+from services.assistant import compaction, memory
+from services.assistant.agent.loop import (
+    CONTEXT_WINDOW, resume_pending_confirmation, run_assistant)
+from services.common import tracing
 from services.common.auth import CurrentUser, require_student
-from services.common.mongo import database, log_activity
+from services.common.mongo import CONVERSATIONS, database, log_activity, utcnow
 
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
@@ -61,22 +63,67 @@ def assistant_chat(request: AssistantChatRequest,
     """
     db = database()
     session_id, conversation = _conversation_for(db, request, user)
+    text = request.message.strip()
 
-    if memory.is_memory_command(request.message):
-        result = memory.handle_memory_command(db, user.id, request.message)
-        conversation = conversation + [{"role": "user", "content": request.message},
-                                       {"role": "assistant", "content": result["answer"]}]
-        result.update({"status": "completed", "tool_calls": 0, "iterations": 0,
-                       "failures": [], "conversation": conversation, "command": "memory"})
+    if memory.is_memory_command(text):
+        result = memory.handle_memory_command(db, user.id, text)
+        result.update(_command_result(conversation, text, result["answer"], "memory"))
+    elif text.lower() in ("/compact", "/compact now"):
+        compacted, report = compaction.compact(db, user.id, conversation, text,
+                                               session_id=session_id, reason="command")
+        answer = (f"Compacted this session: about {report['tokens_before']} -> "
+                  f"{report['tokens_after']} tokens ({report['context_pct_before']}% -> "
+                  f"{report['context_pct_after']}% of the context window). I kept your "
+                  "preferences, the jobs, companies and events we looked at, your "
+                  "applications, and your latest search.")
+        result = {"answer": answer, "compaction": report,
+                  **_command_result(compacted, None, None, "compact")}
     else:
         result = run_assistant(user_message=request.message, conversation=conversation,
                                student_id=user.id)
+        # Automatic compaction once the session uses most of the context window.
+        if result.get("tokens", {}).get("context_pct", 0) >= compaction.COMPACT_THRESHOLD_PCT \
+                and result.get("status") == "completed":
+            compacted, report = compaction.compact(db, user.id, result["conversation"],
+                                                   request.message, session_id=session_id,
+                                                   reason="threshold")
+            result["conversation"], result["compaction"] = compacted, report
 
     memory.save_session(db, session_id, user.id, result["conversation"])
+    _record_tokens(db, user.id, session_id, result)  # after the session document exists
     result["session_id"] = session_id
     log_activity(db, user.id, "assistant_chat", status=result.get("status"),
                  tool_calls=result.get("tool_calls"), session_id=session_id)
     return result
+
+
+def _command_result(conversation, text, answer, command) -> dict:
+    """Shape of a command reply (no model call)."""
+    if text is not None:
+        conversation = conversation + [{"role": "user", "content": text},
+                                       {"role": "assistant", "content": answer}]
+    return {"status": "completed", "tool_calls": 0, "iterations": 0, "failures": [],
+            "guardrails": [], "conversation": conversation, "command": command,
+            "trace_id": tracing.current_trace_id(),
+            "tokens": {"model_calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
+                       "total_tokens": 0, "context_used": 0, "context_window": CONTEXT_WINDOW,
+                       "context_pct": 0.0, "warning": False, "estimated": False, "calls": []}}
+
+
+def _record_tokens(db, student_id, session_id, result) -> None:
+    """Token usage after every model call (token_usage) and per session."""
+    tokens = result.get("tokens") or {}
+    if not tokens.get("model_calls"):
+        return
+    now = utcnow()
+    db["token_usage"].insert_many([
+        {"student_id": student_id, "session_id": session_id, "trace_id": result.get("trace_id"),
+         "at": now, "context_window": tokens["context_window"],
+         "estimated": tokens["estimated"], **call} for call in tokens["calls"]])
+    db[CONVERSATIONS].update_one(
+        {"_id": session_id, "student_id": student_id},
+        {"$inc": {"tokens_total": tokens["total_tokens"]},
+         "$set": {"last_context_pct": tokens["context_pct"]}})
 
 
 @router.post("/confirm")

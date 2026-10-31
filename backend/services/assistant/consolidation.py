@@ -28,6 +28,9 @@ the same way.
 import json
 import re
 import string
+import time
+
+from services.common import tracing
 
 from services.assistant.memory import CATEGORIES, MAX_DESCRIPTION, normalize_category
 
@@ -64,7 +67,14 @@ def _strip_thinking(text: str) -> str:
 
 
 def _ask_model(client, messages) -> str:
+    started = time.perf_counter()
     reply = client.complete(messages=messages, tools=None, response_format="json")
+    usage = getattr(client, "last_usage", None) or {}
+    wall = (time.perf_counter() - started) * 1000
+    tracing.add_span("model", "consolidation", wall,
+                     inference_ms=usage.get("inference_ms") or round(wall, 1),
+                     prompt_tokens=usage.get("prompt_tokens"),
+                     completion_tokens=usage.get("completion_tokens"))
     content = reply.get("content") or ""
     if content.startswith("Ollama request failed"):
         raise ModelUnavailable(content)

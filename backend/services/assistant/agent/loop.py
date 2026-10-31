@@ -32,6 +32,7 @@ from services.assistant import guardrails as g
 from services.assistant.agent.client import OllamaClient
 from services.assistant.agent.tools import TOOL_SCHEMAS, execute_tool
 from services.assistant.memory import build_system_prompt
+from services.common import tracing
 from services.common.mongo import PENDING_ACTIONS, USERS, database, utcnow
 from services.common.mongo import PENDING_TTL_SECONDS as MONGO_PENDING_TTL_SECONDS
 
@@ -55,6 +56,29 @@ g.load_schemas(TOOL_SCHEMAS)
 KNOWN_TOOLS = set(g.TOOL_POLICY)
 VALID_CATEGORIES = {"full_time", "part_time", "on_campus", "internship"}
 PENDING_TTL_SECONDS = MONGO_PENDING_TTL_SECONDS
+
+# Token tracking (Part 6): warn above 70% of the context window.
+CONTEXT_WINDOW = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
+CONTEXT_WARNING_PCT = 70.0
+
+
+def estimate_tokens(text: str) -> int:
+    """About 4 characters per token, for models that report no counts."""
+    return max(1, -(-len(text) // 4))
+
+
+def estimate_usage(messages, reply, window) -> dict:
+    prompt = estimate_tokens(json.dumps(messages, default=str)) + estimate_tokens(
+        json.dumps(TOOL_SCHEMAS))
+    completion = estimate_tokens(json.dumps(reply, default=str))
+    return {"prompt_tokens": prompt, "completion_tokens": completion,
+            "context_window": window, "estimated": True}
+
+
+def context_pct(usage: dict) -> float:
+    used = usage["prompt_tokens"] + usage["completion_tokens"]
+    return round(100.0 * used / max(1, usage["context_window"]), 1)
+
 
 MODEL_UNAVAILABLE = ("The assistant model is unavailable right now, so I can't "
                      "answer reliably. Please try again in a minute.")
@@ -207,26 +231,63 @@ class Run:
         self.started = time.perf_counter()
         self.timing = {"model_ms": 0.0, "tool_ms": 0.0, "model_calls": 0, "tool_runs": 0,
                        "spans": []}
+        self.token_calls: list[dict] = []
 
     def span(self, stage: str, name: str, started: float, **extra):
         ms = round((time.perf_counter() - started) * 1000, 1)
         self.timing[f"{stage}_ms"] = round(self.timing[f"{stage}_ms"] + ms, 1)
         self.timing[f"{stage}_calls" if stage == "model" else "tool_runs"] += 1
         self.timing["spans"].append({"stage": stage, "name": name, "ms": ms, **extra})
+        tracing.add_span(stage, name, ms, **extra)
 
     def model(self, messages):
         if hasattr(self.client, "timeout"):
             self.client.timeout = max(1.0, min(180.0, self.deadline.remaining()))
         started = time.perf_counter()
         reply = self.client.complete(messages=messages, tools=TOOL_SCHEMAS)
-        self.span("model", "chat", started)
+        usage = getattr(self.client, "last_usage", None) or estimate_usage(
+            messages, reply, getattr(self.client, "num_ctx", CONTEXT_WINDOW))
+        usage = {**usage, "call": len(self.token_calls) + 1}
+        self.token_calls.append(usage)
+        wall = (time.perf_counter() - started) * 1000
+        self.span("model", "chat", started,
+                  inference_ms=usage.get("inference_ms") or round(wall, 1),
+                  prompt_tokens=usage["prompt_tokens"],
+                  completion_tokens=usage["completion_tokens"])
+        tracing.log("model_call", call=usage["call"], prompt_tokens=usage["prompt_tokens"],
+                    completion_tokens=usage["completion_tokens"],
+                    context_pct=context_pct(usage), inference_ms=usage.get("inference_ms"),
+                    queue_wait_ms=usage.get("queue_wait_ms"), estimated=usage["estimated"])
         return reply
 
     def tool(self, tool_name, arguments):
+        trace = tracing.current()
+        db_before = trace.db_ms if trace else 0.0
         started = time.perf_counter()
         result = execute_tool(tool_name=tool_name, arguments=arguments)
-        self.span("tool", tool_name, started)
+        db_ms = round((trace.db_ms - db_before) if trace else 0.0, 1)
+        self.span("tool", tool_name, started, db_ms=db_ms)
         return result
+
+    def tokens(self) -> dict:
+        """Token use for this request; context % is the last call's footprint."""
+        if not self.token_calls:
+            return {"model_calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
+                    "total_tokens": 0, "context_used": 0, "context_window": CONTEXT_WINDOW,
+                    "context_pct": 0.0, "warning": False, "estimated": False, "calls": []}
+        last = self.token_calls[-1]
+        prompt = sum(c["prompt_tokens"] for c in self.token_calls)
+        completion = sum(c["completion_tokens"] for c in self.token_calls)
+        pct = context_pct(last)
+        return {"model_calls": len(self.token_calls), "prompt_tokens": prompt,
+                "completion_tokens": completion, "total_tokens": prompt + completion,
+                "context_used": last["prompt_tokens"] + last["completion_tokens"],
+                "context_window": last["context_window"], "context_pct": pct,
+                "warning": pct > CONTEXT_WARNING_PCT,
+                "estimated": any(c["estimated"] for c in self.token_calls),
+                "calls": [{k: c.get(k) for k in ("call", "prompt_tokens", "completion_tokens",
+                                                   "inference_ms", "queue_wait_ms")}
+                          for c in self.token_calls]}
 
 
 def _finish(run: Run, answer, messages, iterations, status, assistant_message=None, extra=None):
@@ -240,6 +301,15 @@ def _finish(run: Run, answer, messages, iterations, status, assistant_message=No
         "timing": {**run.timing, "total_ms": total_ms,
                    "other_ms": round(total_ms - run.timing["model_ms"] - run.timing["tool_ms"], 1)},
     }
+    result["tokens"] = run.tokens()
+    result["trace_id"] = tracing.current_trace_id()
+    trace = tracing.current()
+    if trace is not None:
+        trace.attributes.update(result_status=status, tool_calls=run.tool_call_count,
+                                tokens=result["tokens"]["total_tokens"],
+                                context_pct=result["tokens"]["context_pct"])
+        if status not in ("completed", "pending_confirmation"):
+            trace.attributes["error"] = (run.events[-1]["detail"] if run.events else status)[:300]
     if extra:
         result.update(extra)
     return result

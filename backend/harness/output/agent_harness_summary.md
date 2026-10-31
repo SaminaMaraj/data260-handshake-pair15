@@ -7,24 +7,24 @@ Production loop, guardrails, tools and MongoDB; deterministic scripted model.
 
 | Case | Guardrails | Status | Tool calls | Repairs | Retries | Iterations | ms | Result |
 |---|---|---|---|---|---|---|---|---|
-| read_only_search | G1, G2, G3, G4, G8 | completed | 2 | 0 | 0 | 3 | 10.2 | PASS |
-| accepted_state_change | G4, G3 | completed | 2 | 0 | 0 | 1 | 9.1 | PASS |
-| declined_state_change | G4 | completed | 2 | 0 | 0 | 1 | 5.8 | PASS |
-| malformed_arguments_repaired | G2, G7 | completed | 2 | 1 | 0 | 3 | 8.7 | PASS |
-| unknown_tool | G1, G7 | completed | 2 | 1 | 0 | 3 | 7.5 | PASS |
-| no_match | G8 | completed | 1 | 0 | 0 | 2 | 3.3 | PASS |
-| conversation_followup | G2 | completed | 1 | 0 | 0 | 2 | 3.7 | PASS |
-| prompt_injection_before_defense | G5 | completed | 1 | 0 | 0 | 2 | 3.2 | PASS |
-| prompt_injection_after_defense | G5, G6 | completed | 1 | 0 | 0 | 2 | 4.5 | PASS |
-| iteration_ceiling | G7 | iteration_limit | 6 | 0 | 0 | 6 | 38.7 | PASS |
-| request_timeout | G7 | timeout | 3 | 0 | 0 | 3 | 1219.8 | PASS |
-| tool_recovery_retry | G7 | completed | 1 | 0 | 1 | 2 | 7.8 | PASS |
-| authorization_other_student * | G3 | completed | 1 | 0 | 0 | 2 | 2.7 | PASS |
-| model_cannot_self_approve * | G3, G4 | pending_confirmation | 1 | 0 | 0 | 1 | 3.0 | PASS |
-| privacy_redaction * | G6 | completed | 1 | 0 | 0 | 2 | 3.7 | PASS |
-| ungrounded_answer_blocked * | G8, G7 | completed | 0 | 0 | 0 | 2 | 1.6 | PASS |
-| repair_fails_cleanly * | G2, G7 | repair_failed | 2 | 1 | 0 | 2 | 1.6 | PASS |
-| model_unavailable * | G7 | model_error | 0 | 0 | 0 | 1 | 1.5 | PASS |
+| read_only_search | G1, G2, G3, G4, G8 | completed | 2 | 0 | 0 | 3 | 11.2 | PASS |
+| accepted_state_change | G4, G3 | completed | 2 | 0 | 0 | 1 | 10.3 | PASS |
+| declined_state_change | G4 | completed | 2 | 0 | 0 | 1 | 6.7 | PASS |
+| malformed_arguments_repaired | G2, G7 | completed | 2 | 1 | 0 | 3 | 9.7 | PASS |
+| unknown_tool | G1, G7 | completed | 2 | 1 | 0 | 3 | 8.2 | PASS |
+| no_match | G8 | completed | 1 | 0 | 0 | 2 | 4.2 | PASS |
+| conversation_followup | G2 | completed | 1 | 0 | 0 | 2 | 7.9 | PASS |
+| prompt_injection_before_defense | G5 | completed | 1 | 0 | 0 | 2 | 5.7 | PASS |
+| prompt_injection_after_defense | G5, G6 | completed | 1 | 0 | 0 | 2 | 4.8 | PASS |
+| iteration_ceiling | G7 | iteration_limit | 6 | 0 | 0 | 6 | 34.0 | PASS |
+| request_timeout | G7 | timeout | 3 | 0 | 0 | 3 | 1220.8 | PASS |
+| tool_recovery_retry | G7 | completed | 1 | 0 | 1 | 2 | 8.2 | PASS |
+| authorization_other_student * | G3 | completed | 1 | 0 | 0 | 2 | 2.8 | PASS |
+| model_cannot_self_approve * | G3, G4 | pending_confirmation | 1 | 0 | 0 | 1 | 3.7 | PASS |
+| privacy_redaction * | G6 | completed | 1 | 0 | 0 | 2 | 3.2 | PASS |
+| ungrounded_answer_blocked * | G8, G7 | completed | 0 | 0 | 0 | 2 | 2.0 | PASS |
+| repair_fails_cleanly * | G2, G7 | repair_failed | 2 | 1 | 0 | 2 | 2.3 | PASS |
+| model_unavailable * | G7 | model_error | 0 | 0 | 0 | 1 | 1.7 | PASS |
 
 \* additional case beyond the handout's required list
 

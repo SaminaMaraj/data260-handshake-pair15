@@ -27,8 +27,10 @@ import os
 import sys
 import time
 
+from datetime import datetime, timezone
+
 from services.assistant import consolidation, memory
-from services.common import events
+from services.common import events, tracing
 from services.common.mongo import (
     CONVERSATIONS, PROCESSED_EVENTS, STUDENT_MEMORY, database, log_activity, utcnow)
 
@@ -145,8 +147,36 @@ def process_message(db, raw: bytes, client, dead_letter, sleep=time.sleep) -> di
         event = events.decode(raw)
     except events.PoisonMessage as exc:
         dead_letter(events.dead_letter(raw, events.MEMORY_CONSOLIDATE, str(exc), 0))
+        tracing.log("kafka_message", status="dead_lettered", reason=f"poison: {exc}")
         return {"status": "dead_lettered", "reason": f"poison: {exc}", "attempts": 0}
 
+    # Continue the trace of the request that published this message.
+    trace, token = tracing.start("p15-memory-worker", event["payload"].get("action", "?"),
+                                 event.get("trace_id"))
+    try:
+        trace.spans.append({"stage": "queue", "name": events.MEMORY_CONSOLIDATE,
+                            "ms": kafka_wait_ms(event), "at_ms": 0.0})
+        outcome = _process(db, event, client, dead_letter, sleep)
+        tracing.log("kafka_message", topic=events.MEMORY_CONSOLIDATE,
+                    event_id=event["event_id"], status=outcome["status"],
+                    attempts=outcome.get("attempts"), kafka_wait_ms=trace.spans[0]["ms"],
+                    ms=trace.elapsed_ms(), db_ms=round(trace.db_ms, 1))
+        tracing.save(db, trace, status=outcome["status"], error=outcome.get("reason"))
+        return outcome
+    finally:
+        tracing.finish(token)
+
+
+def kafka_wait_ms(event: dict) -> float:
+    """Time the message waited in Kafka: published (created_at) -> picked up."""
+    try:
+        created = datetime.fromisoformat(event["created_at"].replace("Z", "+00:00"))
+        return round(max(0.0, (datetime.now(timezone.utc) - created).total_seconds() * 1000), 1)
+    except (KeyError, ValueError, AttributeError):
+        return 0.0
+
+
+def _process(db, event: dict, client, dead_letter, sleep) -> dict:
     last_error = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:

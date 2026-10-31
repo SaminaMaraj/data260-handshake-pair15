@@ -29,6 +29,8 @@ import os
 import uuid
 from datetime import datetime, timezone
 
+from services.common.tracing import current_trace_id
+
 PREFIX = "p15."
 
 APPLICATION_CREATED = PREFIX + "application.created"
@@ -63,7 +65,7 @@ def make_event(event_type: str, key: str, payload: dict, *, trace_id: str | None
                event_id: str | None = None) -> dict:
     return {
         "event_id": event_id or new_id(),
-        "trace_id": trace_id or new_id(),
+        "trace_id": trace_id or current_trace_id() or new_id(),
         "type": event_type,
         "key": str(key),
         "payload": payload,
