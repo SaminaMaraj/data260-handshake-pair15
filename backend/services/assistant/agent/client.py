@@ -36,6 +36,9 @@ class OllamaClient:
         self,
         base_url: str | None = None,
         model: str | None = None,
+        timeout: float | None = None,
+        num_ctx: int | None = None,
+        think: bool | None = None,
     ):
         self.base_url = (
             base_url
@@ -55,12 +58,16 @@ class OllamaClient:
 
         # Seconds per model call. The agent loop lowers it to whatever is
         # left of the request deadline (Guardrail 7).
-        self.timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
+        self.timeout = float(timeout or os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
 
         # Context window requested from Ollama; token tracking reports usage
         # against it (Part 6). qwen3:8b supports far more, but a fixed
         # window makes "context %" meaningful and predictable.
-        self.num_ctx = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
+        self.num_ctx = int(num_ctx or os.getenv("OLLAMA_NUM_CTX", "8192"))
+
+        # qwen3 "thinking": None = the model's default. False skips the hidden
+        # reasoning tokens, which matters for long JSON jobs (consolidation).
+        self.think = think
 
         # Filled after every call: tokens and Ollama's own timings.
         self.last_usage: dict | None = None
@@ -90,6 +97,9 @@ class OllamaClient:
             payload["format"] = "json"
 
         payload["options"] = {"num_ctx": self.num_ctx}
+
+        if self.think is not None:
+            payload["think"] = self.think
 
         request = urllib.request.Request(
             url=f"{self.base_url}/api/chat",

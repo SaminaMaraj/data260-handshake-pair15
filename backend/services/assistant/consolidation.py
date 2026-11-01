@@ -129,6 +129,7 @@ Rules:
 7. Use only facts in the input. Never invent or embellish. Keep each
    description under {max_desc} characters.
 8. The output must have fewer than {max_after} entries.
+9. Keep each reason under 12 words.
 """
 
 

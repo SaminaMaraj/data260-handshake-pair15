@@ -37,12 +37,16 @@ def show(title, lines):
 
 
 def main():
+    # Print as we go even when piped into tee (Python buffers pipes otherwise).
+    sys.stdout.reconfigure(line_buffering=True)
     parser = argparse.ArgumentParser()
     parser.add_argument("--student", type=int, default=1)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--via-kafka", action="store_true")
     mode.add_argument("--direct", action="store_true")
-    parser.add_argument("--timeout", type=int, default=600, help="seconds to wait for the worker")
+    parser.add_argument("--timeout", type=int,
+                        default=int(memory_worker.MAX_POLL_INTERVAL_MS / 1000),
+                        help="seconds to wait for the worker (default: its worst case)")
     args = parser.parse_args()
 
     db = database()
@@ -62,17 +66,23 @@ def main():
         events.publisher().flush()
         print(f"\nPublished to {events.MEMORY_CONSOLIDATE}: event_id={event['event_id']} "
               f"trace_id={event['trace_id']}; waiting for the memory worker...")
-        record = None
+        record, last_note = None, 0.0
         while time.monotonic() - started < args.timeout:
             record = db[memory_worker.CONSOLIDATIONS].find_one({"_id": event["event_id"]})
             if record and record.get("status") == "applied":
                 break
+            done = db.processed_events.find_one({"_id": event["event_id"]})
+            if done and done.get("status") == "dead_lettered":
+                sys.exit("The worker dead-lettered this message after its retries: "
+                         "see `docker compose logs p15-memory-worker`.")
+            if time.monotonic() - last_note >= 30:
+                last_note = time.monotonic()
+                print(f"  ...still waiting ({time.monotonic() - started:.0f}s)")
             time.sleep(2)
         if not record:
-            sys.exit("No result: is the memory worker running and KAFKA_BOOTSTRAP set?")
+            sys.exit("No result in time: check `docker compose logs p15-memory-worker`.")
     else:
-        from services.assistant.agent.client import OllamaClient
-        outcome = memory_worker.process_message(db, events.encode(event), OllamaClient(),
+        outcome = memory_worker.process_message(db, events.encode(event), memory_worker.model_client(),
                                                 lambda r: print("DEAD-LETTERED:", r))
         print(f"\nDirect run outcome: {outcome}")
         record = db[memory_worker.CONSOLIDATIONS].find_one({"_id": event["event_id"]})

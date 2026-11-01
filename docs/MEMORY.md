@@ -104,3 +104,32 @@ The tests (`tests/test_memory.py`, 16 cases) check the same pipeline with
 scripted models: a correct one, one that drops facts and gets dates wrong
 (caught and re-prompted), one that returns no JSON (fallback), and one that
 is offline (3 attempts, then the DLQ).
+
+## Incident from the first real run (Oct 31) and the fix
+
+The first run against qwen3:8b on a MacBook failed, and the failure is
+recorded here because it exercised the reliability design for real:
+
+1. Each consolidation call **timed out at 180 s**. The model spent most of
+   its time on qwen3's hidden "thinking" before writing a long JSON answer.
+2. After 3 attempts (about 11 minutes) the message was **dead-lettered**, and
+   the 62 entries were left untouched, as designed.
+3. The processing had exceeded Kafka's **`max.poll.interval.ms` (5 min)**.
+   Kafka removed the worker from its group, `commit()` failed with
+   `UNKNOWN_MEMBER_ID`, the worker crashed, Docker restarted it, and Kafka
+   **redelivered** the uncommitted message, which started the cycle again.
+   Nothing was lost or duplicated, but the loop never ended.
+
+Fixes (`memory_worker.py`, `agent/client.py`), each covered by a test in
+`tests/test_memory.py`:
+
+- **A separate model client for the worker:** `think: false`,
+  `num_ctx` 16384, 600 s per call.
+- **`max.poll.interval.ms`** is set to the worst case (3 x 600 s + backoff +
+  margin, about 32 min).
+- **A failed commit is logged, not raised.** The redelivered message is
+  skipped through `processed_events`.
+- **Dead-lettered messages are recorded in `processed_events`**, so a
+  redelivery does not retry them and dead-letter them a second time.
+- **The report script prints progress as it waits** and stops early with a
+  clear message if the worker dead-letters the event.

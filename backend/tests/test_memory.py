@@ -354,3 +354,86 @@ def test_session_end_extracts_facts_and_discards_conversation(db, bus):
     assert db.conversations.find_one({"_id": "s1"}) is None
     lines = [memory.render_line(e) for e in memory.list_entries(db, STUDENT)]
     assert any("| location | Lives in Mountain View." in l for l in lines)
+
+
+# ---- the first real run (Oct 31): model timeouts, rebalance, failed commit ------------------
+
+class FakeMessage:
+    def __init__(self, raw):
+        self._raw = raw
+
+    def value(self):
+        return self._raw
+
+    def partition(self):
+        return 0
+
+    def offset(self):
+        return 7
+
+
+class RebalancedConsumer:
+    """Kafka removed us from the group while we were processing."""
+    def __init__(self):
+        self.commits = 0
+
+    def commit(self, message=None, asynchronous=False):
+        from confluent_kafka import KafkaError, KafkaException
+        self.commits += 1
+        raise KafkaException(KafkaError(KafkaError.UNKNOWN_MEMBER_ID, "Commit failed: Unknown member"))
+
+
+def test_failed_commit_does_not_crash_and_redelivery_is_skipped(db):
+    memory_seed.seed(db, STUDENT)
+    raw = consolidate_message(event_id="rebalance-event-01")
+    consumer, model = RebalancedConsumer(), OracleModel()
+    first = memory_worker.consume(consumer, FakeMessage(raw), db, model, [].append)
+    assert first["status"] == "applied" and first["committed"] is False   # no crash
+    again = memory_worker.consume(consumer, FakeMessage(raw), db, model, [].append)
+    assert again["status"] == "duplicate_skipped" and model.calls == 1
+    assert db.student_memory.count_documents({"student_id": STUDENT}) == 27
+
+
+def test_dead_lettered_message_is_not_retried_on_redelivery(db):
+    memory_seed.seed(db, STUDENT)
+    raw = consolidate_message(event_id="timeout-event-01")
+    dead, model = [], OfflineModel()
+    first = memory_worker.process_message(db, raw, model, dead.append, sleep=no_sleep)
+    second = memory_worker.process_message(db, raw, model, dead.append, sleep=no_sleep)
+    assert first["status"] == "dead_lettered" and second["status"] == "duplicate_skipped"
+    assert model.calls == 3 and len(dead) == 1          # not 6 calls, not 2 DLQ records
+
+
+def test_poll_interval_covers_the_worst_case():
+    worst_case_s = (memory_worker.MAX_ATTEMPTS * memory_worker.MODEL_TIMEOUT_SECONDS
+                    + sum(memory_worker.BACKOFF_SECONDS))
+    assert memory_worker.MAX_POLL_INTERVAL_MS / 1000 > worst_case_s
+    assert memory_worker.MAX_POLL_INTERVAL_MS > 300_000      # Kafka's 5-minute default
+
+
+def test_consolidation_client_turns_thinking_off(monkeypatch):
+    import io
+    import urllib.request
+    sent = {}
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(request, timeout):
+        sent["payload"], sent["timeout"] = json.loads(request.data), timeout
+        return Response(json.dumps({"message": {"role": "assistant", "content": "{}"},
+                                    "total_duration": 1}).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    client = memory_worker.model_client()
+    client.complete([{"role": "user", "content": "x"}], response_format="json")
+    assert sent["payload"]["think"] is False and sent["payload"]["format"] == "json"
+    assert sent["payload"]["options"]["num_ctx"] == memory_worker.MODEL_NUM_CTX
+    assert sent["timeout"] == memory_worker.MODEL_TIMEOUT_SECONDS
+    from services.assistant.agent.client import OllamaClient
+    OllamaClient().complete([{"role": "user", "content": "x"}])
+    assert "think" not in sent["payload"]                   # the chat assistant is unchanged
