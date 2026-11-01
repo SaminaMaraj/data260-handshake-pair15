@@ -98,6 +98,8 @@ def run_consolidation(db, student_id: int, event_id: str, client, trace_id=None)
         "_id": event_id, "student_id": student_id, "trace_id": trace_id,
         "status": "applied", "method": result["method"],
         "model_attempts": result["model_attempts"],
+        "model_calls": result.get("model_calls"),
+        "fallback_categories": result.get("fallback_categories", []),
         "before_count": len(stored), "after_count": len(new_docs),
         "before": [memory.render_line(e) for e in stored],
         "after": [memory.render_line(e) for e in new_docs],

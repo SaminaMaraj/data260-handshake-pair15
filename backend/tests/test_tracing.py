@@ -111,9 +111,8 @@ def test_trace_id_propagates_through_kafka_to_the_worker(stack, monkeypatch):
     class Echo:
         def complete(self, messages, tools=None, response_format=None):
             rows = [int(n) for n in __import__("re").findall(r"\[(\d+)\]", messages[-1]["content"])]
-            return {"role": "assistant", "content": json.dumps({"entries": [
-                {"sources": rows, "date": "2026-10-30", "category": "skill",
-                 "description": "Knows several tools", "action": "merged", "reason": "same"}]})}
+            return {"role": "assistant", "content": json.dumps({"groups": [
+                {"ids": rows, "type": "duplicate", "reason": "same"}]})}
     outcome = memory_worker.process_message(db, events.encode(message), Echo(), [].append,
                                             sleep=lambda _: None)
     assert outcome["status"] == "applied"

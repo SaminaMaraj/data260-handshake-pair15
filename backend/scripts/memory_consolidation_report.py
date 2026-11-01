@@ -93,15 +93,17 @@ def main():
     show("AFTER", after)
 
     print(f"\n===== HOW IT WAS DONE =====")
-    print(f"method={record['method']}  model_attempts={record['model_attempts']}  "
-          f"model_time_ms={record['elapsed_ms']}  end_to_end_s={time.monotonic() - started:.1f}")
+    print(f"method={record['method']}  model_calls={record.get('model_calls')} "
+          f"(one per category, plus re-prompts)  max_attempts_in_a_category={record['model_attempts']}")
+    print(f"model_time_ms={record['elapsed_ms']}  end_to_end_s={time.monotonic() - started:.1f}")
     print("\n===== DECISIONS =====")
     for d in record["decisions"]:
-        print(f"- [{d['step']}] {d['action']} sources={d['sources']}\n"
+        print(f"- [{d['step']}] {d.get('category', '') + ': ' if d.get('category') else ''}"
+              f"{d['action']} sources={d['sources']}\n"
               f"    kept: {d.get('kept', '-')}\n    reason: {d.get('reason', '')}")
     print("\n===== MODEL ANSWERS REJECTED BY VALIDATION (then re-prompted) =====")
     for e in record["model_errors"] or []:
-        print(f"- attempt {e['attempt']}:")
+        print(f"- {e.get('category', 'all')}, attempt {e['attempt']}:")
         for err in e["errors"]:
             print(f"    {err}")
     if not record["model_errors"]:

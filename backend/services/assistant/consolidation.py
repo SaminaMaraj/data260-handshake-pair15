@@ -1,29 +1,34 @@
 """Memory consolidation and extraction (Lab 2 Part 3).
 
 consolidate(entries, client) turns one student's learned memory into a
-shorter, consistent list:
+shorter, consistent list. The work is split so the model does only the part
+that needs language understanding:
 
-  1. Code merges exact duplicates (same category, same text ignoring case,
+  1. Code merges exact duplicates (same category and text, ignoring case,
      spacing and punctuation). Certain and free.
-  2. The model merges near-duplicates and resolves contradictions, answering
-     in JSON where every output entry names the input entries it came from.
-  3. Code validates that answer:
-       - every input entry is used exactly once (nothing silently dropped,
-         nothing counted twice)
-       - sources exist (nothing invented)
-       - the date is the newest date among its sources (a resolved
-         contradiction keeps the newer fact)
-       - valid category, non-empty description, fewer than MAX_AFTER entries
-     Fixable problems (wrong date, unknown category) are corrected and logged;
-     anything else gets ONE re-prompt with the specific errors, then the
-     deterministic fallback.
+  2. Code splits the rest BY CATEGORY (location, preference, education, ...)
+     and sends each category to the model separately: small inputs, short
+     answers, far fewer mistakes than one 60-entry request.
+  3. The model only CLUSTERS: it returns groups of entry numbers that are
+     about the same single fact, labelled "duplicate" or "contradiction".
+     It does not rewrite entries, so it cannot paraphrase or invent facts.
+  4. Code validates the answer (JSON shape, entry numbers exist) and applies
+     ONE policy to every group: the newest entry wins, with the newest date.
+     For a contradiction that keeps the current fact; for duplicates it keeps
+     the latest wording. An entry listed in two groups joins those groups
+     (logged as a correction). Invalid answers get ONE re-prompt with the
+     specific errors; if that also fails, that category alone falls back to
+     the deterministic near-duplicate merge.
 
-Every step is recorded in `decisions`, so the report can show what was
-merged, what was resolved and where the model was wrong.
+Every step is recorded in `decisions`/`corrections`/`errors`, so the report
+can show what was merged, what was resolved and where the model was wrong.
 
 extract(conversation, client) is the session-end step: it asks the model
-for lasting facts the student stated about themselves and validates them
-the same way.
+for lasting facts the student stated about themselves.
+
+History: version 1 asked the model to rewrite the whole memory as JSON in one
+call. qwen3:8b either took minutes per call (thinking on) or double-counted
+entries and was rejected (thinking off). See docs/MEMORY.md.
 """
 import json
 import re
@@ -34,8 +39,8 @@ from services.common import tracing
 
 from services.assistant.memory import CATEGORIES, MAX_DESCRIPTION, normalize_category
 
-MAX_AFTER = 40          # the handout's target: below 40 entries
-MAX_MODEL_ATTEMPTS = 2  # first answer + one re-prompt with the errors
+MAX_AFTER = 40          # the handout's target: below 40 entries (checked by the report)
+MAX_MODEL_ATTEMPTS = 2  # per category: first answer + one re-prompt with the errors
 
 
 class ModelUnavailable(RuntimeError):
@@ -106,101 +111,88 @@ def merge_exact_duplicates(entries: list[dict]):
     return kept, decisions
 
 
-# ---- step 2: the model -----------------------------------------------------------------
+# ---- step 2: the model clusters one category at a time ------------------------------
 
-CONSOLIDATE_PROMPT = """You consolidate what a career assistant remembers about ONE student.
+GROUP_PROMPT = """You help a career assistant tidy what it remembers about ONE student.
 
-Input: numbered memory entries, each "[number] YYYY-MM-DD | category | description".
+Below are memory entries in the category "{category}", one per line, as
+"[number] YYYY-MM-DD | description".
 
-Return JSON only, exactly this shape:
-{{"entries": [{{"sources": [numbers], "date": "YYYY-MM-DD", "category": "...",
-  "description": "...", "action": "kept" | "merged" | "resolved", "reason": "..."}}]}}
+Find groups of entries that are about the SAME single fact:
+- "duplicate": they say the same thing in different words.
+- "contradiction": same fact, but they disagree (e.g. "lives in Austin" and
+  later "moved to Denver"; "wants part-time work" and later "now wants
+  full-time work"; a number that changed).
+Do NOT group entries about different facts, even if related: "lives in Austin"
+and "wants to stay in Texas" are different facts; "knows Java" and "prefers
+Java over C++" are different facts.
 
-Rules:
-1. Every input number must appear in the sources of exactly ONE output entry.
-2. Entries that say the same thing in different words: ONE entry, action "merged".
-3. Entries that contradict each other (same topic, incompatible facts, e.g. two
-   different preferred cities, or "likes X" then "no longer likes X"): keep ONLY
-   the fact from the NEWEST date, list all of them in sources, action "resolved",
-   and say in reason which entry replaced which.
-4. Entries about different things stay separate, action "kept".
-5. date = the newest date among that entry's sources.
-6. category must be one of: {categories}.
-7. Use only facts in the input. Never invent or embellish. Keep each
-   description under {max_desc} characters.
-8. The output must have fewer than {max_after} entries.
-9. Keep each reason under 12 words.
+Return JSON only:
+{{"groups": [{{"ids": [numbers], "type": "duplicate" or "contradiction", "reason": "under 12 words"}}]}}
+Each number may appear in at most one group. Only list groups with 2 or more
+entries; entries you leave out are kept unchanged. Return {{"groups": []}} if
+nothing belongs together.
 """
 
 
-def _model_messages(entries: list[dict]) -> list[dict]:
-    lines = "\n".join(f"[{e['id']}] {e['date']} | {e['category']} | {e['description']}"
-                      for e in entries)
-    system = CONSOLIDATE_PROMPT.format(categories=", ".join(CATEGORIES),
-                                       max_desc=MAX_DESCRIPTION, max_after=MAX_AFTER)
-    return [{"role": "system", "content": system},
-            {"role": "user", "content": f"Memory entries ({len(entries)}):\n{lines}"}]
+def _category_messages(category: str, rows: list[dict]) -> list[dict]:
+    lines = "\n".join(f"[{n}] {r['date']} | {r['description']}"
+                       for n, r in enumerate(rows, start=1))
+    return [{"role": "system", "content": GROUP_PROMPT.format(category=category)},
+            {"role": "user", "content": f"Entries ({len(rows)}):\n{lines}"}]
 
 
-def validate(model_json: str, entries: list[dict]):
-    """-> (clean_entries, corrections, errors). errors means re-prompt."""
-    by_id = {e["id"]: e for e in entries}
-    errors, corrections = [], []
+def validate_groups(reply: str, count: int):
+    """-> (groups, corrections, errors). errors means re-prompt.
+
+    groups: [{ids (1-based, sorted), type, reason}], no id in two groups.
+    """
     try:
-        data = json.loads(model_json)
-        items = data["entries"]
+        data = json.loads(reply)
+        items = data["groups"]
         assert isinstance(items, list)
     except (ValueError, KeyError, TypeError, AssertionError):
-        return None, [], ["The reply was not JSON of the form {\"entries\": [...]}."]
+        return None, [], ['The reply was not JSON of the form {"groups": [...]}.']
 
-    used: dict[int, int] = {}
-    clean = []
+    errors, clean = [], []
     for n, item in enumerate(items, start=1):
-        if not isinstance(item, dict):
-            errors.append(f"Output entry {n} is not an object.")
+        ids = item.get("ids") if isinstance(item, dict) else None
+        if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+            errors.append(f"Group {n} needs an \"ids\" list of entry numbers.")
             continue
-        sources = item.get("sources")
-        if not isinstance(sources, list) or not sources or \
-                not all(isinstance(s, int) for s in sources):
-            errors.append(f"Output entry {n} needs a non-empty list of integer sources.")
-            continue
-        unknown = [s for s in sources if s not in by_id]
+        unknown = sorted({i for i in ids if not 1 <= i <= count})
         if unknown:
-            errors.append(f"Output entry {n} cites sources that do not exist: {unknown}.")
+            errors.append(f"Group {n} uses entry numbers that do not exist: {unknown} "
+                          f"(valid: 1 to {count}).")
             continue
-        for s in sources:
-            used[s] = used.get(s, 0) + 1
-        description = " ".join(str(item.get("description") or "").split())
-        if not description:
-            errors.append(f"Output entry {n} has an empty description.")
-            continue
-        if len(description) > MAX_DESCRIPTION:
-            description = description[:MAX_DESCRIPTION]
-            corrections.append(f"entry {n}: description shortened to {MAX_DESCRIPTION} chars")
-        newest = max(by_id[s]["date"] for s in sources)
-        if item.get("date") != newest:
-            corrections.append(f"entry {n} (sources {sources}): model date "
-                               f"{item.get('date')!r} corrected to newest source date {newest}")
-        category = str(item.get("category") or "").strip().lower()
-        if category not in CATEGORIES:
-            fixed = by_id[max(sources, key=lambda s: by_id[s]['date'])]["category"]
-            corrections.append(f"entry {n}: category {category!r} is not valid; "
-                               f"used {fixed!r} from its newest source")
-            category = fixed
-        clean.append({"date": newest, "category": category, "description": description,
-                      "sources": sorted(sources), "action": item.get("action") or "kept",
-                      "reason": str(item.get("reason") or "")[:300]})
+        ids = sorted(set(ids))
+        if len(ids) < 2:
+            continue  # a group of one changes nothing
+        kind = item.get("type") if item.get("type") in ("duplicate", "contradiction") else "duplicate"
+        clean.append({"ids": ids, "type": kind, "reason": str(item.get("reason") or "")[:200]})
+    if errors:
+        return None, [], errors
 
-    missing = sorted(set(by_id) - set(used))
-    twice = sorted(s for s, n in used.items() if n > 1)
-    if missing:
-        errors.append(f"These input entries are not in any output entry: {missing}. "
-                      "Each one must be kept, merged or resolved.")
-    if twice:
-        errors.append(f"These input entries appear in more than one output entry: {twice}.")
-    if len(clean) >= MAX_AFTER:
-        errors.append(f"The output has {len(clean)} entries; it must have fewer than {MAX_AFTER}.")
-    return clean, corrections, errors
+    # An entry in two groups means those groups describe one fact: join them.
+    joined, corrections = [], []
+    for group in clean:
+        overlapping = [g for g in joined if set(g["ids"]) & set(group["ids"])]
+        if not overlapping:
+            joined.append(dict(group))
+            continue
+        target = overlapping[0]
+        for other in overlapping[1:]:
+            target["ids"] = sorted(set(target["ids"]) | set(other["ids"]))
+            target["type"] = "contradiction" if "contradiction" in (target["type"], other["type"]) else target["type"]
+            joined.remove(other)
+        shared = sorted(set(target["ids"]) & set(group["ids"]))
+        target["ids"] = sorted(set(target["ids"]) | set(group["ids"]))
+        if group["type"] == "contradiction":
+            target["type"] = "contradiction"
+        target["reason"] = target["reason"] or group["reason"]
+        corrections.append(f"entries {shared} were listed in more than one group; "
+                           f"the groups were joined into {target['ids']}")
+    return joined, corrections, []
 
 
 # ---- step 3: deterministic fallback ------------------------------------------------------
@@ -227,48 +219,85 @@ def deterministic(entries: list[dict]):
 
 # ---- public entry points ----------------------------------------------------------------------
 
+def _line(e: dict) -> str:
+    return f"{e['date']} | {e['category']} | {e['description']}"
+
+
 def consolidate(entries: list[dict], client) -> dict:
     """entries: [{id, date, category, description}] (ids are local numbers).
 
-    Returns {entries, decisions, corrections, method, model_attempts, errors}.
+    Returns {entries, decisions, corrections, method, model_attempts,
+    model_calls, errors, fallback_categories}.
     """
     entries = [{**e, "category": normalize_category(e["category"])} for e in entries]
-    stage1, decisions = merge_exact_duplicates(entries)
-    # Renumber the merged rows so the model sees one number per row.
-    for n, row in enumerate(stage1, start=1):
-        row["id"], row["original_sources"] = n, row.pop("sources")
-    corrections, all_errors = [], []
-    messages = _model_messages(stage1)
+    rows, decisions = merge_exact_duplicates(entries)
 
-    for attempt in range(1, MAX_MODEL_ATTEMPTS + 1):
-        reply = _ask_model(client, messages)
-        clean, fixes, errors = validate(reply, stage1)
-        if not errors:
-            corrections += fixes
-            originals = {row["id"]: row["original_sources"] for row in stage1}
-            final = []
-            for item in clean:
-                srcs = sorted(x for s in item["sources"] for x in originals[s])
-                final.append({**item, "sources": srcs})
-                if item["action"] in ("merged", "resolved") or len(srcs) > 1:
-                    decisions.append({"step": "model", "action": item["action"],
-                                      "sources": srcs,
-                                      "kept": f"{item['date']} | {item['category']} | "
-                                              f"{item['description']}",
-                                      "reason": item["reason"]})
-            return {"entries": final, "decisions": decisions, "corrections": corrections,
-                    "method": "model", "model_attempts": attempt, "errors": all_errors}
-        all_errors.append({"attempt": attempt, "errors": errors})
-        messages = messages + [
-            {"role": "assistant", "content": reply},
-            {"role": "user", "content": "Your answer broke these rules:\n- "
-             + "\n- ".join(errors) + "\nReturn the corrected JSON only."}]
+    by_category: dict[str, list[dict]] = {}
+    for row in rows:
+        by_category.setdefault(row["category"], []).append(row)
 
-    fallback, more = deterministic([{**row, "sources": row["original_sources"]}
-                                    for row in stage1])
-    return {"entries": fallback, "decisions": decisions + more, "corrections": corrections,
-            "method": "deterministic_fallback", "model_attempts": MAX_MODEL_ATTEMPTS,
-            "errors": all_errors}
+    final, corrections, errors, fallback = [], [], [], []
+    model_calls = max_attempts = 0
+    for category, group_rows in by_category.items():
+        if len(group_rows) < 2:
+            final += [{**r, "action": "kept", "reason": "only entry in its category"}
+                      for r in group_rows]
+            continue
+        messages = _category_messages(category, group_rows)
+        groups = None
+        for attempt in range(1, MAX_MODEL_ATTEMPTS + 1):
+            reply = _ask_model(client, messages)
+            model_calls += 1
+            max_attempts = max(max_attempts, attempt)
+            groups, fixes, problems = validate_groups(reply, len(group_rows))
+            if not problems:
+                corrections += [f"{category}: {c}" for c in fixes]
+                break
+            errors.append({"attempt": attempt, "category": category, "errors": problems})
+            groups = None
+            messages = messages + [
+                {"role": "assistant", "content": reply},
+                {"role": "user", "content": "Your answer broke these rules:\n- "
+                 + "\n- ".join(problems) + "\nReturn the corrected JSON only."}]
+
+        if groups is None:  # this category only: deterministic merge
+            fallback.append(category)
+            kept, more = deterministic(group_rows)
+            final += kept
+            decisions += [{**d, "category": category} for d in more]
+            continue
+
+        grouped = set()
+        for g in groups:
+            members = [group_rows[i - 1] for i in g["ids"]]
+            grouped |= set(g["ids"])
+            newest = max(members, key=lambda r: (r["date"], r["id"]))
+            sources = sorted(x for r in members for x in r["sources"])
+            action = "resolved" if g["type"] == "contradiction" else "merged"
+            kept = {"date": newest["date"], "category": category,
+                    "description": newest["description"], "sources": sources,
+                    "action": action, "reason": g["reason"]}
+            final.append(kept)
+            decisions.append({"step": "model", "action": action, "category": category,
+                              "sources": sources, "kept": _line(kept),
+                              "reason": (g["reason"] + "; " if g["reason"] else "")
+                                        + "newest entry kept"})
+        final += [{**r, "action": "kept", "reason": "no related entry"}
+                  for n, r in enumerate(group_rows, start=1) if n not in grouped]
+
+    final = [{k: e[k] for k in ("date", "category", "description", "sources", "action", "reason")}
+             for e in sorted(final, key=lambda e: (e["date"], e["category"], e["description"]))]
+    if not model_calls:
+        method = "no_model_needed"
+    elif not fallback:
+        method = "model"
+    elif len(fallback) == sum(len(v) > 1 for v in by_category.values()):
+        method = "deterministic_fallback"
+    else:
+        method = "model+fallback(" + ",".join(fallback) + ")"
+    return {"entries": final, "decisions": decisions, "corrections": corrections,
+            "method": method, "model_attempts": max_attempts, "model_calls": model_calls,
+            "errors": errors, "fallback_categories": fallback}
 
 
 EXTRACT_PROMPT = """Read a conversation between a student and a career assistant.

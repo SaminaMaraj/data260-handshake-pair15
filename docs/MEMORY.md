@@ -52,28 +52,48 @@ session/end ─────────┼─► p15.memory.consolidate ─► p
 
 ## How consolidation decides
 
-1. **Code** merges exact duplicates, ignoring case and punctuation, so
-   `Strong in Python.` and `strong in python` become one. It keeps the
-   newest date and the original wording.
-2. **The model** gets the remaining entries as numbered lines and returns
-   JSON. Each output entry lists its `sources`, an `action`
-   (`kept`/`merged`/`resolved`) and a `reason`. Rule: for contradictions, keep
-   only the **newest** fact.
-3. **Code validates** the model's answer:
+The model does only the part that needs language understanding, and code does
+the rest:
+
+1. **Code merges exact duplicates**, ignoring case and punctuation, so
+   `Strong in Python.` and `strong in python` become one entry.
+2. **Code splits the rest by category** (location, preference, education, …)
+   and sends each category to the model **separately**: 9 small requests
+   instead of one 58-entry request.
+3. **The model only clusters.** For one category it returns
+   `{"groups": [{"ids": [4, 25, 51, 57], "type": "contradiction", "reason": "..."}]}`,
+   which lists the entries about the same single fact. It never rewrites
+   an entry, so it cannot paraphrase or invent anything.
+4. **Code validates the answer and applies one rule**: in every group, **the
+   newest entry wins**, with its date and wording. For a contradiction that
+   keeps the current fact; for paraphrases, the latest wording.
 
 | Check | If it fails |
 |---|---|
-| Every input used exactly once | Re-prompt with the missing or doubled numbers |
-| Sources exist | Re-prompt ("cites sources that do not exist") |
-| Fewer than 40 entries | Re-prompt |
-| Date = newest source date | **Corrected by code** and logged |
-| Category valid | **Corrected** (taken from the newest source) and logged |
+| JSON of the form `{"groups": [...]}` | Re-prompt once with the error |
+| Every entry number exists | Re-prompt once ("numbers that do not exist") |
+| An entry is in two groups | **Corrected by code:** the groups are joined (logged) |
+| A group of one, or an unknown type | Ignored, or treated as a duplicate |
 
-   After one re-prompt, the deterministic fallback runs (near-duplicate merge
-   at ≥ 75% word overlap). It cannot detect contradictions, and the record
-   says so.
-4. Everything (before, after, decisions, corrections, rejected answers,
-   timing) is stored in `memory_consolidations` under the `event_id`.
+   If a category still fails after the re-prompt, **only that category**
+   falls back to the deterministic near-duplicate merge (≥ 75% word overlap),
+   and `method` reports it (e.g. `model+fallback(location)`).
+5. Everything (before, after, decisions per category, corrections, rejected
+   answers, model calls, timing) is stored in `memory_consolidations` under
+   the `event_id`.
+
+### Why this design (version 1 vs version 2)
+
+Version 1 asked the model to rewrite the whole memory as one JSON document.
+Against qwen3:8b it failed in two different ways:
+
+| Run | Thinking | Result |
+|---|---|---|
+| Oct 31 | on | Each call took **more than 180 s** (timed out). One retry round finished: 62 -> 22 on attempt 2 |
+| Nov 1 | off | Fast, but **both answers listed 12 entries in two output entries**. Rejected; fallback gave 62 -> 58, contradictions not resolved (4/10 checks) |
+
+Clustering per category gives the model a smaller, easier job and keeps the
+bookkeeping in code, which never miscounts.
 
 ## The 62-entry verification
 

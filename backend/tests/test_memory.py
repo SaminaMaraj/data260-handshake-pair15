@@ -28,31 +28,32 @@ from services.assistant import consolidation, memory, memory_seed, memory_worker
 from services.common import events
 
 STUDENT = 1
-LINE = re.compile(r"\[(\d+)\] (\S+) \| (\S+) \| (.+)")
 FACT_OF = {text: fact for fact, _, _, text in memory_seed.E}
 
 
 # ---- scripted models ----------------------------------------------------------------------
+# The model now sees ONE category at a time as "[n] YYYY-MM-DD | description"
+# lines and answers {"groups": [{"ids": [...], "type": ..., "reason": ...}]}.
+
+ROW = re.compile(r"\[(\d+)\] (\S+) \| (.+)")
+CONTRADICTION_FACTS = {2, 3, 4, 5, 6}
+
 
 def _rows(messages):
     user = next(m["content"] for m in messages if m["role"] == "user")
-    return [dict(id=int(a), date=b, category=c, description=d)
-            for a, b, c, d in LINE.findall(user)]
+    return [dict(n=int(a), date=b, description=c) for a, b, c in ROW.findall(user)]
 
 
-def oracle_answer(rows):
-    groups = {}
+def oracle_groups(rows):
+    by_fact = {}
     for r in rows:
-        groups.setdefault(FACT_OF[r["description"]], []).append(r)
-    out = []
-    for fact, group in sorted(groups.items()):
-        newest = max(group, key=lambda r: (r["date"], r["id"]))
-        out.append({"sources": [r["id"] for r in group], "date": newest["date"],
-                    "category": newest["category"], "description": newest["description"],
-                    "action": "kept" if len(group) == 1 else
-                              "resolved" if fact in (2, 3, 4, 5, 6) else "merged",
-                    "reason": f"fact F{fact}: kept the newest of {len(group)}"})
-    return out
+        by_fact.setdefault(FACT_OF[r["description"]], []).append(r["n"])
+    return [{"ids": ids, "type": "contradiction" if fact in CONTRADICTION_FACTS else "duplicate",
+             "reason": f"fact F{fact}"} for fact, ids in sorted(by_fact.items()) if len(ids) > 1]
+
+
+def reply(payload):
+    return {"role": "assistant", "content": "<think>grouping</think>" + json.dumps(payload)}
 
 
 class OracleModel:
@@ -60,19 +61,21 @@ class OracleModel:
 
     def complete(self, messages, tools=None, response_format=None):
         self.calls += 1
-        return {"role": "assistant",
-                "content": "<think>grouping</think>" + json.dumps({"entries": oracle_answer(_rows(messages))})}
+        return reply({"groups": oracle_groups(_rows(messages))})
 
 
 class SloppyModel(OracleModel):
+    """First answer for each category is wrong (unknown entry number); the
+    re-prompt is answered correctly. Also lists one entry in two groups."""
+
     def complete(self, messages, tools=None, response_format=None):
         self.calls += 1
-        answer = oracle_answer(_rows(messages))
-        if self.calls == 1:
-            answer = answer[:-2]                    # silently drops two facts
-            answer[0]["date"] = "2026-01-01"        # wrong date
-            answer[1]["category"] = "hobby"         # invalid category
-        return {"role": "assistant", "content": json.dumps({"entries": answer})}
+        rows, groups = _rows(messages), oracle_groups(_rows(messages))
+        if not any(m["role"] == "assistant" for m in messages):
+            return reply({"groups": groups + [{"ids": [1, 99], "type": "duplicate"}]})
+        if len(groups) >= 2:                      # overlap: code must join the groups
+            groups.append({"ids": [groups[0]["ids"][0], groups[1]["ids"][0]], "type": "duplicate"})
+        return reply({"groups": groups})
 
 
 class BrokenModel(OracleModel):
@@ -85,6 +88,14 @@ class OfflineModel(OracleModel):
     def complete(self, messages, tools=None, response_format=None):
         self.calls += 1
         return {"role": "assistant", "content": "Ollama request failed: connection refused"}
+
+
+def categories_needing_model():
+    kept, _ = consolidation.merge_exact_duplicates(fixture_rows())
+    counts = {}
+    for r in kept:
+        counts[r["category"]] = counts.get(r["category"], 0) + 1
+    return sum(n > 1 for n in counts.values())
 
 
 class FactModel:
@@ -222,52 +233,83 @@ def test_exact_duplicates_merged_by_code_first():
     assert len(merged) == 4                     # incl. "strong in python" vs "Strong in Python."
 
 
+def lines_of(result):
+    return [f"{e['date']} | {e['category']} | {e['description']}" for e in result["entries"]]
+
+
 def test_correct_model_passes_all_checks():
-    result = consolidation.consolidate(fixture_rows(), OracleModel())
-    lines = [f"{e['date']} | {e['category']} | {e['description']}" for e in result["entries"]]
+    model = OracleModel()
+    result = consolidation.consolidate(fixture_rows(), model)
     assert result["method"] == "model" and result["model_attempts"] == 1
-    assert len(lines) == memory_seed.DISTINCT_FACTS
-    failed = [c for c in memory_seed.check(lines) if not c[1]]
+    assert model.calls == result["model_calls"] == categories_needing_model()
+    assert len(result["entries"]) == memory_seed.DISTINCT_FACTS
+    failed = [c for c in memory_seed.check(lines_of(result)) if not c[1]]
     assert not failed, failed
     assert sorted(x for e in result["entries"] for x in e["sources"]) == list(range(1, 63))
+    resolved = [d for d in result["decisions"] if d["action"] == "resolved"]
+    assert len(resolved) == 5                     # the five contradictions
+
+
+def test_newest_entry_wins_inside_a_group():
+    rows = [dict(id=1, date="2026-08-03", category="location", description="Lives in Sunnyvale."),
+            dict(id=2, date="2026-10-02", category="location", description="Moved to Palo Alto."),
+            dict(id=3, date="2026-08-25", category="location", description="Based in Sunnyvale.")]
+
+    class Model:
+        def complete(self, messages, tools=None, response_format=None):
+            return reply({"groups": [{"ids": [1, 2, 3], "type": "contradiction", "reason": "city"}]})
+
+    result = consolidation.consolidate(rows, Model())
+    assert lines_of(result) == ["2026-10-02 | location | Moved to Palo Alto."]
+    assert result["entries"][0]["sources"] == [1, 2, 3]
 
 
 def test_model_mistakes_are_caught_and_repaired_once():
     model = SloppyModel()
     result = consolidation.consolidate(fixture_rows(), model)
-    assert model.calls == 2 and result["model_attempts"] == 2
-    first_errors = " ".join(result["errors"][0]["errors"])
-    assert "not in any output entry" in first_errors        # dropped facts detected
+    n = categories_needing_model()
+    assert model.calls == 2 * n and result["model_attempts"] == 2
+    assert all("do not exist" in " ".join(e["errors"]) for e in result["errors"])
+    assert any("listed in more than one group" in c for c in result["corrections"])
     assert result["method"] == "model"
-    assert all(c[1] for c in memory_seed.check(
-        [f"{e['date']} | {e['category']} | {e['description']}" for e in result["entries"]]))
+    # Joining two facts loses one of them: the check catches over-merging.
+    assert len(result["entries"]) < memory_seed.DISTINCT_FACTS
 
 
-def test_wrong_date_and_category_are_corrected_not_trusted():
-    rows = fixture_rows()[:3]
-    reply = json.dumps({"entries": [{"sources": [1, 2, 3], "date": "2025-01-01",
-                                     "category": "hobby", "description": "MS at SJSU.",
-                                     "action": "merged", "reason": "same"}]})
-    clean, corrections, errors = consolidation.validate(reply, rows)
+def test_validate_groups_rules():
+    groups, fixes, errors = consolidation.validate_groups(
+        json.dumps({"groups": [{"ids": [1, 2], "type": "duplicate"},
+                               {"ids": [2, 3], "type": "contradiction"},
+                               {"ids": [4]}, {"ids": [5, 5, 6], "type": "odd"}]}), 6)
     assert not errors
-    assert clean[0]["date"] == "2026-09-14" and clean[0]["category"] == "education"
-    assert len(corrections) == 2
+    assert groups == [{"ids": [1, 2, 3], "type": "contradiction", "reason": ""},
+                      {"ids": [5, 6], "type": "duplicate", "reason": ""}]
+    assert len(fixes) == 1
+    for bad, needle in [("not json", "not JSON"), (json.dumps({"groups": [{"ids": [1, 9]}]}), "do not exist"),
+                        (json.dumps({"groups": [{"ids": "1,2"}]}), "ids")]:
+        _, _, errors = consolidation.validate_groups(bad, 6)
+        assert errors and needle in errors[0]
 
 
-def test_invented_sources_rejected():
-    rows = fixture_rows()[:2]
-    reply = json.dumps({"entries": [{"sources": [1, 2, 99], "date": "2026-08-03",
-                                     "category": "education", "description": "x"}]})
-    _, _, errors = consolidation.validate(reply, rows)
-    assert any("do not exist" in e for e in errors)
-
-
-def test_unusable_model_falls_back_to_deterministic():
+def test_unusable_model_falls_back_per_category():
     model = BrokenModel()
     result = consolidation.consolidate(fixture_rows(), model)
-    assert model.calls == consolidation.MAX_MODEL_ATTEMPTS
+    assert model.calls == consolidation.MAX_MODEL_ATTEMPTS * categories_needing_model()
     assert result["method"] == "deterministic_fallback"
     assert len(result["entries"]) < 62
+
+
+def test_partial_fallback_keeps_good_categories():
+    class HalfBroken(OracleModel):
+        def complete(self, messages, tools=None, response_format=None):
+            self.calls += 1
+            if 'category "location"' in messages[0]["content"]:
+                return {"role": "assistant", "content": "no json"}
+            return reply({"groups": oracle_groups(_rows(messages))})
+
+    result = consolidation.consolidate(fixture_rows(), HalfBroken())
+    assert result["fallback_categories"] == ["location"]
+    assert result["method"] == "model+fallback(location)"
 
 
 # ---- the Kafka consumer ------------------------------------------------------------------------------
@@ -295,7 +337,7 @@ def test_redelivered_message_is_skipped(db):
     first = memory_worker.process_message(db, raw, model, [].append, sleep=no_sleep)
     second = memory_worker.process_message(db, raw, model, [].append, sleep=no_sleep)
     assert first["status"] == "applied" and second["status"] == "duplicate_skipped"
-    assert model.calls == 1
+    assert model.calls == categories_needing_model()          # nothing re-run on redelivery
     assert db.student_memory.count_documents({"student_id": STUDENT}) == 27
 
 
@@ -389,8 +431,9 @@ def test_failed_commit_does_not_crash_and_redelivery_is_skipped(db):
     consumer, model = RebalancedConsumer(), OracleModel()
     first = memory_worker.consume(consumer, FakeMessage(raw), db, model, [].append)
     assert first["status"] == "applied" and first["committed"] is False   # no crash
+    calls = model.calls
     again = memory_worker.consume(consumer, FakeMessage(raw), db, model, [].append)
-    assert again["status"] == "duplicate_skipped" and model.calls == 1
+    assert again["status"] == "duplicate_skipped" and model.calls == calls
     assert db.student_memory.count_documents({"student_id": STUDENT}) == 27
 
 
