@@ -64,7 +64,13 @@ the rest:
    `{"groups": [{"ids": [4, 25, 51, 57], "type": "contradiction", "reason": "..."}]}`,
    which lists the entries about the same single fact. It never rewrites
    an entry, so it cannot paraphrase or invent anything.
-4. **Code validates the answer and applies one rule**: in every group, **the
+4. **A second, focused question per category**, asked about the de-duplicated
+   list: "Which entries are **no longer true** because a newer entry changed
+   them?" The model answers with pairs, e.g. `{"replaced": [{"old": 2, "new": 5}]}`.
+   Code checks the dates (a pair given the wrong way round is turned around
+   and logged), joins chains (Sunnyvale -> Palo Alto -> ...), and keeps the
+   newest. If this question fails twice, the pass-1 result is kept.
+5. **Code validates every answer and applies one rule**: in every group, **the
    newest entry wins**, with its date and wording. For a contradiction that
    keeps the current fact; for paraphrases, the latest wording.
 
@@ -78,7 +84,7 @@ the rest:
    If a category still fails after the re-prompt, **only that category**
    falls back to the deterministic near-duplicate merge (≥ 75% word overlap),
    and `method` reports it (e.g. `model+fallback(location)`).
-5. Everything (before, after, decisions per category, corrections, rejected
+6. Everything (before, after, decisions per category, corrections, rejected
    answers, model calls, timing) is stored in `memory_consolidations` under
    the `event_id`.
 
@@ -90,10 +96,17 @@ Against qwen3:8b it failed in two different ways:
 | Run | Thinking | Result |
 |---|---|---|
 | Oct 31 | on | Each call took **more than 180 s** (timed out). One retry round finished: 62 -> 22 on attempt 2 |
-| Nov 1 | off | Fast, but **both answers listed 12 entries in two output entries**. Rejected; fallback gave 62 -> 58, contradictions not resolved (4/10 checks) |
+| Nov 1 (v1) | off | Fast, but **both answers listed 12 entries in two output entries**. Rejected; fallback gave 62 -> 58, contradictions not resolved (4/10 checks) |
+| Nov 1 (v2, clustering only) | off | First answers valid, 62 -> 30, **7/10 checks**. Graduation and salary resolved, but city, job type and remote were split into an "old" group and a "new" group that were never linked |
+| v3 (clustering + replacement question) | off | see the latest run in `docs/evidence/memory_consolidation.txt` |
 
 Clustering per category gives the model a smaller, easier job and keeps the
-bookkeeping in code, which never miscounts.
+bookkeeping in code, which never miscounts. The v2 run showed qwen3:8b
+groups entries by **similar wording** but, with many entries, does not link
+an old fact to the newer one that replaces it. Asking that as its own short
+question fixes this; `tests/test_memory.py` reproduces the v2 behavior
+(`test_without_the_second_question_contradictions_survive`) and shows the
+replacement question resolving it (`test_second_question_links_old_and_new_sides`).
 
 ## The 62-entry verification
 

@@ -56,12 +56,50 @@ def reply(payload):
     return {"role": "assistant", "content": "<think>grouping</think>" + json.dumps(payload)}
 
 
+def is_replacement_pass(messages):
+    return "NO LONGER TRUE" in messages[0]["content"]
+
+
+# Where the NEW side of each contradiction starts (fact number -> first date).
+NEW_SIDE_FROM = {2: "2026-10-20", 3: "2026-10-02", 4: "2026-10-12", 5: "2026-10-18", 6: "2026-10-24"}
+
+
+def side(row):
+    fact = FACT_OF[row["description"]]
+    return fact, (fact in NEW_SIDE_FROM and row["date"] >= NEW_SIDE_FROM[fact])
+
+
 class OracleModel:
+    """Groups each whole fact at once in pass 1; nothing left for pass 2."""
     calls = 0
 
     def complete(self, messages, tools=None, response_format=None):
         self.calls += 1
+        if is_replacement_pass(messages):
+            return reply({"replaced": []})
         return reply({"groups": oracle_groups(_rows(messages))})
+
+
+class LikeQwenModel(OracleModel):
+    """What qwen3:8b did on Nov 1: pass 1 groups by wording, so the old and
+    new sides of a contradiction end up in SEPARATE groups; pass 2 then
+    links each old side to its new side."""
+
+    def complete(self, messages, tools=None, response_format=None):
+        self.calls += 1
+        rows = _rows(messages)
+        if is_replacement_pass(messages):
+            by_fact = {}
+            for r in rows:
+                fact, new = side(r)
+                by_fact.setdefault(fact, {}).setdefault(new, r["n"])
+            return reply({"replaced": [{"old": s[False], "new": s[True], "reason": "changed"}
+                                       for s in by_fact.values() if False in s and True in s]})
+        by_side = {}
+        for r in rows:
+            by_side.setdefault(side(r), []).append(r["n"])
+        return reply({"groups": [{"ids": ids, "type": "duplicate", "reason": "same wording"}
+                                 for ids in by_side.values() if len(ids) > 1]})
 
 
 class SloppyModel(OracleModel):
@@ -70,6 +108,8 @@ class SloppyModel(OracleModel):
 
     def complete(self, messages, tools=None, response_format=None):
         self.calls += 1
+        if is_replacement_pass(messages):
+            return reply({"replaced": []})
         rows, groups = _rows(messages), oracle_groups(_rows(messages))
         if not any(m["role"] == "assistant" for m in messages):
             return reply({"groups": groups + [{"ids": [1, 99], "type": "duplicate"}]})
@@ -241,7 +281,7 @@ def test_correct_model_passes_all_checks():
     model = OracleModel()
     result = consolidation.consolidate(fixture_rows(), model)
     assert result["method"] == "model" and result["model_attempts"] == 1
-    assert model.calls == result["model_calls"] == categories_needing_model()
+    assert model.calls == result["model_calls"] >= categories_needing_model()
     assert len(result["entries"]) == memory_seed.DISTINCT_FACTS
     failed = [c for c in memory_seed.check(lines_of(result)) if not c[1]]
     assert not failed, failed
@@ -264,11 +304,65 @@ def test_newest_entry_wins_inside_a_group():
     assert result["entries"][0]["sources"] == [1, 2, 3]
 
 
+def test_second_question_links_old_and_new_sides():
+    """Reproduces the Nov 1 real run (C1-C3 missed) and shows pass 2 fixes it."""
+    model = LikeQwenModel()
+    result = consolidation.consolidate(fixture_rows(), model)
+    failed = [c for c in memory_seed.check(lines_of(result)) if not c[1]]
+    assert not failed, failed
+    assert len(result["entries"]) == memory_seed.DISTINCT_FACTS
+    linked = [d for d in result["decisions"] if d["step"] == "model-replacement"]
+    assert {d["category"] for d in linked} == {"education", "location", "preference"}
+    assert len(linked) == 5
+
+
+def test_without_the_second_question_contradictions_survive(monkeypatch):
+    """The Nov 1 result: same model, pass 2 answered with no pairs."""
+    class NoPass2(LikeQwenModel):
+        def complete(self, messages, tools=None, response_format=None):
+            if is_replacement_pass(messages):
+                self.calls += 1
+                return reply({"replaced": []})
+            return super().complete(messages, tools, response_format)
+
+    result = consolidation.consolidate(fixture_rows(), NoPass2())
+    failed = {c[0] for c in memory_seed.check(lines_of(result)) if not c[1]}
+    assert {f for f in failed if f.startswith("resolved")} == {
+        f"resolved {name}" for name, _, _ in memory_seed.CONTRADICTIONS}
+
+
+def test_replacement_rules():
+    rows = [dict(id=1, date="2026-08-03", category="location", description="a", sources=[1]),
+            dict(id=2, date="2026-10-02", category="location", description="b", sources=[2]),
+            dict(id=3, date="2026-10-15", category="location", description="c", sources=[3])]
+    pairs, fixes, errors = consolidation.validate_replacements(
+        json.dumps({"replaced": [{"old": 2, "new": 1}, {"old": 2, "new": 3}, {"old": 3, "new": 3}]}), rows)
+    assert not errors and pairs == [(1, 2, ""), (2, 3, "")] and len(fixes) == 1   # reversed pair fixed
+    kept, decisions = consolidation._apply_replacements(rows, pairs)
+    assert [k["description"] for k in kept] == ["c"] and kept[0]["sources"] == [1, 2, 3]
+    for bad, needle in [("nope", "not JSON"), (json.dumps({"replaced": [{"old": 1, "new": 9}]}), "do not exist"),
+                        (json.dumps({"replaced": [{"old": "1", "new": 2}]}), "integer")]:
+        assert needle in consolidation.validate_replacements(bad, rows)[2][0]
+
+
+def test_failed_second_question_keeps_first_pass_result():
+    class Pass2Broken(OracleModel):
+        def complete(self, messages, tools=None, response_format=None):
+            if is_replacement_pass(messages):
+                self.calls += 1
+                return {"role": "assistant", "content": "no json"}
+            return super().complete(messages, tools, response_format)
+
+    result = consolidation.consolidate(fixture_rows(), Pass2Broken())
+    assert result["method"] == "model" and result["replacement_skipped"]
+    assert all(c[1] for c in memory_seed.check(lines_of(result)))   # pass 1 was already right
+
+
 def test_model_mistakes_are_caught_and_repaired_once():
     model = SloppyModel()
     result = consolidation.consolidate(fixture_rows(), model)
     n = categories_needing_model()
-    assert model.calls == 2 * n and result["model_attempts"] == 2
+    assert len(result["errors"]) == n and result["model_attempts"] == 2      # one bad answer per category
     assert all("do not exist" in " ".join(e["errors"]) for e in result["errors"])
     assert any("listed in more than one group" in c for c in result["corrections"])
     assert result["method"] == "model"
@@ -302,10 +396,10 @@ def test_unusable_model_falls_back_per_category():
 def test_partial_fallback_keeps_good_categories():
     class HalfBroken(OracleModel):
         def complete(self, messages, tools=None, response_format=None):
-            self.calls += 1
             if 'category "location"' in messages[0]["content"]:
+                self.calls += 1
                 return {"role": "assistant", "content": "no json"}
-            return reply({"groups": oracle_groups(_rows(messages))})
+            return super().complete(messages, tools, response_format)
 
     result = consolidation.consolidate(fixture_rows(), HalfBroken())
     assert result["fallback_categories"] == ["location"]
@@ -335,9 +429,10 @@ def test_redelivered_message_is_skipped(db):
     raw = consolidate_message(event_id="fixed-event-id")
     model = OracleModel()
     first = memory_worker.process_message(db, raw, model, [].append, sleep=no_sleep)
+    calls = model.calls
     second = memory_worker.process_message(db, raw, model, [].append, sleep=no_sleep)
     assert first["status"] == "applied" and second["status"] == "duplicate_skipped"
-    assert model.calls == categories_needing_model()          # nothing re-run on redelivery
+    assert model.calls == calls                               # nothing re-run on redelivery
     assert db.student_memory.count_documents({"student_id": STUDENT}) == 27
 
 

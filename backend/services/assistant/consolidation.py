@@ -12,7 +12,13 @@ that needs language understanding:
   3. The model only CLUSTERS: it returns groups of entry numbers that are
      about the same single fact, labelled "duplicate" or "contradiction".
      It does not rewrite entries, so it cannot paraphrase or invent facts.
-  4. Code validates the answer (JSON shape, entry numbers exist) and applies
+  4. A second, focused question per category, over the de-duplicated list:
+     "which entries are no longer true because a newer entry changed them?"
+     The model answers with (old, new) pairs; code joins each chain and keeps
+     the newest. (Real runs showed qwen3:8b grouping "Lives in Sunnyvale" with
+     "Based in Sunnyvale" but not linking them to "Moved to Palo Alto" when
+     it had to do both jobs in one answer.)
+  5. Code validates every answer (JSON shape, entry numbers exist) and applies
      ONE policy to every group: the newest entry wins, with the newest date.
      For a contradiction that keeps the current fact; for duplicates it keeps
      the latest wording. An entry listed in two groups joins those groups
@@ -195,6 +201,108 @@ def validate_groups(reply: str, count: int):
     return joined, corrections, []
 
 
+# ---- step 2b: the model finds replacements (old fact changed by a newer one) ----------------
+
+REPLACE_PROMPT = """You check what a career assistant remembers about ONE student,
+category "{category}". Each line is "[number] YYYY-MM-DD | description",
+oldest first.
+
+Find entries that are NO LONGER TRUE because a NEWER entry about the same
+topic changed them. Examples of a replacement:
+- "lives in Austin"            -> later "moved to Denver"
+- "only wants part-time work"  -> later "now wants full-time work"
+- "does not want to travel"    -> later "is now open to travel"
+- "budget is 500"              -> later "budget raised to 800"
+NOT a replacement (both can be true at the same time):
+- "lives in Austin" and "wants to stay in Texas"
+- "knows Java" and "is learning Go"
+- two different preferences about different things
+
+Return JSON only:
+{{"replaced": [{{"old": number, "new": number, "reason": "under 12 words"}}]}}
+"old" is the entry that is no longer true. Return {{"replaced": []}} if nothing
+was replaced.
+"""
+
+
+def _replacement_messages(category: str, rows: list[dict]) -> list[dict]:
+    lines = "\n".join(f"[{n}] {r['date']} | {r['description']}"
+                       for n, r in enumerate(rows, start=1))
+    return [{"role": "system", "content": REPLACE_PROMPT.format(category=category)},
+            {"role": "user", "content": f"Entries ({len(rows)}):\n{lines}"}]
+
+
+def validate_replacements(reply: str, rows: list[dict]):
+    """-> (pairs, corrections, errors). pairs: [(older_index, newer_index, reason)], 1-based.
+
+    Code, not the model, decides which entry of a pair is older (by date):
+    a pair given the wrong way round is turned around and logged.
+    """
+    try:
+        data = json.loads(reply)
+        items = data["replaced"]
+        assert isinstance(items, list)
+    except (ValueError, KeyError, TypeError, AssertionError):
+        return None, [], ['The reply was not JSON of the form {"replaced": [...]}.']
+    count, errors, pairs, corrections = len(rows), [], [], []
+    for n, item in enumerate(items, start=1):
+        old = item.get("old") if isinstance(item, dict) else None
+        new = item.get("new") if isinstance(item, dict) else None
+        if not isinstance(old, int) or not isinstance(new, int):
+            errors.append(f"Item {n} needs integer \"old\" and \"new\" entry numbers.")
+            continue
+        unknown = [i for i in (old, new) if not 1 <= i <= count]
+        if unknown:
+            errors.append(f"Item {n} uses entry numbers that do not exist: {unknown} "
+                          f"(valid: 1 to {count}).")
+            continue
+        if old == new:
+            continue
+        a, b = rows[old - 1], rows[new - 1]
+        if (a["date"], a.get("id", 0)) > (b["date"], b.get("id", 0)):
+            corrections.append(f"pair old={old}, new={new} was the wrong way round "
+                               "(old is newer); the newer entry was kept")
+            old, new = new, old
+        pairs.append((old, new, str(item.get("reason") or "")[:200]))
+    return (None, [], errors) if errors else (pairs, corrections, [])
+
+
+def _apply_replacements(rows: list[dict], pairs) -> tuple[list[dict], list[dict]]:
+    """Join each chain of replacements; the newest entry of each chain wins."""
+    parent = list(range(len(rows)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    reasons = {}
+    for old, new, reason in pairs:
+        a, b = find(old - 1), find(new - 1)
+        if a != b:
+            parent[a] = b
+        reasons.setdefault(find(new - 1), []).append(reason)
+    chains: dict[int, list[int]] = {}
+    for i in range(len(rows)):
+        chains.setdefault(find(i), []).append(i)
+    out, decisions = [], []
+    for root, members in chains.items():
+        if len(members) == 1:
+            out.append(rows[members[0]])
+            continue
+        group = [rows[i] for i in members]
+        newest = max(group, key=lambda r: (r["date"], r.get("id", 0)))
+        sources = sorted(x for r in group for x in r["sources"])
+        reason = "; ".join(r for r in reasons.get(root, []) if r) or "replaced by a newer entry"
+        kept = {**newest, "sources": sources, "action": "resolved", "reason": reason}
+        out.append(kept)
+        decisions.append({"step": "model-replacement", "action": "resolved",
+                          "sources": sources, "kept": _line(kept),
+                          "reason": reason + "; newest entry kept"})
+    return out, decisions
+
+
 # ---- step 3: deterministic fallback ------------------------------------------------------
 
 def deterministic(entries: list[dict]):
@@ -227,7 +335,7 @@ def consolidate(entries: list[dict], client) -> dict:
     """entries: [{id, date, category, description}] (ids are local numbers).
 
     Returns {entries, decisions, corrections, method, model_attempts,
-    model_calls, errors, fallback_categories}.
+    model_calls, errors, fallback_categories, replacement_skipped}.
     """
     entries = [{**e, "category": normalize_category(e["category"])} for e in entries]
     rows, decisions = merge_exact_duplicates(entries)
@@ -236,7 +344,7 @@ def consolidate(entries: list[dict], client) -> dict:
     for row in rows:
         by_category.setdefault(row["category"], []).append(row)
 
-    final, corrections, errors, fallback = [], [], [], []
+    final, corrections, errors, fallback, replacement_skipped = [], [], [], [], []
     model_calls = max_attempts = 0
     for category, group_rows in by_category.items():
         if len(group_rows) < 2:
@@ -267,23 +375,50 @@ def consolidate(entries: list[dict], client) -> dict:
             decisions += [{**d, "category": category} for d in more]
             continue
 
-        grouped = set()
+        reps, grouped = [], set()
         for g in groups:
             members = [group_rows[i - 1] for i in g["ids"]]
             grouped |= set(g["ids"])
             newest = max(members, key=lambda r: (r["date"], r["id"]))
             sources = sorted(x for r in members for x in r["sources"])
             action = "resolved" if g["type"] == "contradiction" else "merged"
-            kept = {"date": newest["date"], "category": category,
+            kept = {"id": newest["id"], "date": newest["date"], "category": category,
                     "description": newest["description"], "sources": sources,
                     "action": action, "reason": g["reason"]}
-            final.append(kept)
+            reps.append(kept)
             decisions.append({"step": "model", "action": action, "category": category,
                               "sources": sources, "kept": _line(kept),
                               "reason": (g["reason"] + "; " if g["reason"] else "")
                                         + "newest entry kept"})
-        final += [{**r, "action": "kept", "reason": "no related entry"}
-                  for n, r in enumerate(group_rows, start=1) if n not in grouped]
+        reps += [{**r, "action": "kept", "reason": "no related entry"}
+                 for n, r in enumerate(group_rows, start=1) if n not in grouped]
+
+        # Pass 2: which remaining entries were changed by a newer one?
+        if len(reps) > 1:
+            reps.sort(key=lambda r: (r["date"], r["id"]))
+            messages = _replacement_messages(category, reps)
+            pairs = None
+            for attempt in range(1, MAX_MODEL_ATTEMPTS + 1):
+                reply = _ask_model(client, messages)
+                model_calls += 1
+                max_attempts = max(max_attempts, attempt)
+                pairs, fixes, problems = validate_replacements(reply, reps)
+                if not problems:
+                    corrections += [f"{category} (replacements): {c}" for c in fixes]
+                    break
+                errors.append({"attempt": attempt, "category": f"{category} (replacements)",
+                               "errors": problems})
+                pairs = None
+                messages = messages + [
+                    {"role": "assistant", "content": reply},
+                    {"role": "user", "content": "Your answer broke these rules:\n- "
+                     + "\n- ".join(problems) + "\nReturn the corrected JSON only."}]
+            if pairs is None:
+                replacement_skipped.append(category)  # keep the pass-1 result
+            elif pairs:
+                reps, more = _apply_replacements(reps, pairs)
+                decisions += [{**d, "category": category} for d in more]
+        final += reps
 
     final = [{k: e[k] for k in ("date", "category", "description", "sources", "action", "reason")}
              for e in sorted(final, key=lambda e: (e["date"], e["category"], e["description"]))]
@@ -297,7 +432,8 @@ def consolidate(entries: list[dict], client) -> dict:
         method = "model+fallback(" + ",".join(fallback) + ")"
     return {"entries": final, "decisions": decisions, "corrections": corrections,
             "method": method, "model_attempts": max_attempts, "model_calls": model_calls,
-            "errors": errors, "fallback_categories": fallback}
+            "errors": errors, "fallback_categories": fallback,
+            "replacement_skipped": replacement_skipped}
 
 
 EXTRACT_PROMPT = """Read a conversation between a student and a career assistant.
