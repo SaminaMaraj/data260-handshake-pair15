@@ -1,0 +1,4 @@
+merged away: fact 1 - ['Studying for an MS in Applied Data Intelligence at SJSU.', 'Studying for an MS in Applied Data Intelligence at SJSU.', "Is a master's student in Applied Data Intelligence at San Jose State."]
+merged away: fact 7 - ['Strong in Python.', 'strong in python', 'Uses Python for most data analysis work.']
+merged away: fact 16 - ['Prefers companies with fewer than 500 employees.', 'Likes smaller companies, under 500 people.']
+24 entries; 24 of 27 facts still present

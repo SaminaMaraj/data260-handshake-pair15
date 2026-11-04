@@ -1,0 +1,129 @@
+event 27d7d2715ed94a4abe74991b4fa02ac6  trace 6e0fbd22c568447e83a72659608b1718
+method=model  model_attempts=2  model_time_ms=326056  62 -> 22 entries
+
+===== AFTER =====
+  1. 2026-10-20 | education | Studying for MS in Applied Data Intelligence at SJSU, graduating December 2027 after adding a thesis.
+  2. 2026-10-16 | location | Lives in Palo Alto, wants Bay Area jobs near Caltrain stations.
+  3. 2026-10-22 | preference | No longer wants internships; seeking full-time roles after graduation.
+  4. 2026-10-18 | preference | Open to fully remote jobs, prefers in-office roles.
+  5. 2026-10-24 | preference | Minimum salary raised to $85,000.
+  6. 2026-09-22 | preference | Interested in healthcare analytics and data.
+  7. 2026-10-01 | preference | Prefers companies with fewer than 500 employees.
+  8. 2026-09-25 | availability | Can attend events in the evening after 5 pm.
+  9. 2026-10-04 | skill | Uses Python for analytics, prefers over R.
+ 10. 2026-09-05 | skill | Knows SQL and writes complex queries.
+ 11. 2026-09-28 | skill | Builds Tableau dashboards.
+ 12. 2026-10-06 | goal | Learning Spark for big data processing.
+ 13. 2026-10-11 | goal | Wants to learn about deploying machine learning models (MLOps).
+ 14. 2026-10-09 | goal | Aims for a career in data engineering.
+ 15. 2026-09-12 | experience | Teaching assistant for introductory statistics course.
+ 16. 2026-09-08 | experience | Maintains GitHub project portfolio; built Kafka data pipeline.
+ 17. 2026-09-16 | availability | Can work about 20 hours/week during the semester.
+ 18. 2026-09-21 | constraint | Avoids unpaid internships and roles.
+ 19. 2026-09-29 | constraint | Needs jobs reachable by Caltrain.
+ 20. 2026-09-03 | constraint | Not interested in sales roles.
+ 21. 2026-09-19 | preference | Values mentorship programs at employers.
+ 22. 2026-09-30 | experience | Attended Data Analytics information session in Cupertino.
+
+===== DECISIONS =====
+- [code] merged_exact_duplicates sources=[1, 2]
+    kept: 2026-08-03 | education | Studying for an MS in Applied Data Intelligence at SJSU.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+- [code] merged_exact_duplicates sources=[6, 13]
+    kept: 2026-08-11 | skill | Strong in Python.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+- [code] merged_exact_duplicates sources=[17, 32]
+    kept: 2026-09-03 | constraint | Not interested in sales roles.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+- [code] merged_exact_duplicates sources=[35, 36]
+    kept: 2026-09-08 | experience | Built a Kafka data pipeline for a course project.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+- [model] merged sources=[1, 2, 3, 21, 39, 60]
+    kept: 2026-10-20 | education | Studying for MS in Applied Data Intelligence at SJSU, graduating December 2027 after adding a thesis.
+    reason: Multiple entries about education merged into latest graduation date.
+- [model] merged sources=[4, 11, 25, 51, 57, 58]
+    kept: 2026-10-16 | location | Lives in Palo Alto, wants Bay Area jobs near Caltrain stations.
+    reason: Multiple location entries merged into current and preferred locations.
+- [model] resolved sources=[5, 18, 31, 56, 61]
+    kept: 2026-10-22 | preference | No longer wants internships; seeking full-time roles after graduation.
+    reason: Latest entry (57) replaced earlier internship preferences.
+- [model] merged sources=[9, 28, 59]
+    kept: 2026-10-18 | preference | Open to fully remote jobs, prefers in-office roles.
+    reason: Multiple remote/in-office preferences merged.
+- [model] resolved sources=[10, 37, 62]
+    kept: 2026-10-24 | preference | Minimum salary raised to $85,000.
+    reason: Latest entry (58) replaced earlier salary preferences.
+- [model] merged sources=[16, 44]
+    kept: 2026-09-22 | preference | Interested in healthcare analytics and data.
+    reason: Healthcare interest merged into one preference.
+- [model] merged sources=[22, 50]
+    kept: 2026-10-01 | preference | Prefers companies with fewer than 500 employees.
+    reason: Similar company size preferences merged.
+- [model] merged sources=[23, 24, 45, 46]
+    kept: 2026-09-25 | availability | Can attend events in the evening after 5 pm.
+    reason: Multiple event timing preferences merged.
+- [model] merged sources=[6, 13, 29, 42, 52]
+    kept: 2026-10-04 | skill | Uses Python for analytics, prefers over R.
+    reason: Python preference and skills merged.
+- [model] merged sources=[7, 33]
+    kept: 2026-09-05 | skill | Knows SQL and writes complex queries.
+    reason: SQL skills merged.
+- [model] merged sources=[14, 47]
+    kept: 2026-09-28 | skill | Builds Tableau dashboards.
+    reason: Tableau skills merged.
+- [model] merged sources=[30, 53]
+    kept: 2026-10-06 | goal | Learning Spark for big data processing.
+    reason: Spark learning goals merged.
+- [model] merged sources=[34, 55]
+    kept: 2026-10-11 | goal | Wants to learn about deploying machine learning models (MLOps).
+    reason: MLOps interest merged.
+- [model] merged sources=[8, 26, 54]
+    kept: 2026-10-09 | goal | Aims for a career in data engineering.
+    reason: Data engineering goals merged.
+- [model] merged sources=[12, 38]
+    kept: 2026-09-12 | experience | Teaching assistant for introductory statistics course.
+    reason: TA experience merged.
+- [model] merged sources=[27, 35, 36]
+    kept: 2026-09-08 | experience | Maintains GitHub project portfolio; built Kafka data pipeline.
+    reason: Project experience merged.
+- [model] merged sources=[19, 40]
+    kept: 2026-09-16 | availability | Can work about 20 hours/week during the semester.
+    reason: Availability merged.
+- [model] merged sources=[15, 43]
+    kept: 2026-09-21 | constraint | Avoids unpaid internships and roles.
+    reason: Unpaid position constraints merged.
+- [model] merged sources=[20, 48]
+    kept: 2026-09-29 | constraint | Needs jobs reachable by Caltrain.
+    reason: Caltrain commuting constraint merged.
+- [model] kept sources=[17, 32]
+    kept: 2026-09-03 | constraint | Not interested in sales roles.
+    reason: Unique constraint.
+
+===== MODEL ANSWERS REJECTED BY VALIDATION =====
+- attempt 1:
+    These input entries are not in any output entry: [21, 35, 42, 57]. Each one must be kept, merged or resolved.
+
+===== VALUES CORRECTED BY CODE =====
+- entry 4 (sources [7, 25, 55]): model date '2026-10-24' corrected to newest source date 2026-10-18
+- entry 6 (sources [14, 40]): model date '2026-09-14' corrected to newest source date 2026-09-22
+- entry 7 (sources [19, 46]): model date '2026-10-02' corrected to newest source date 2026-10-01
+- entry 9 (sources [11, 26, 38, 48]): model date '2026-09-28' corrected to newest source date 2026-10-04
+- entry 14 (sources [6, 23, 50]): model date '2026-10-20' corrected to newest source date 2026-10-09
+- entry 15 (sources [10, 34]): model date '2026-08-30' corrected to newest source date 2026-09-12
+- entry 16 (sources [24, 32]): model date '2026-09-10' corrected to newest source date 2026-09-08
+- entry 17 (sources [16, 36]): model date '2026-09-19' corrected to newest source date 2026-09-16
+- entry 19 (sources [17, 44]): model date '2026-09-17' corrected to newest source date 2026-09-29
+
+===== CHECKS =====
+[PASS] fewer than 40 entries: 22 entries
+[PASS] duplicate merged: Studying for an MS in Applied Data Intel: appears 0 time(s)
+[PASS] duplicate merged: Strong in Python.: appears 0 time(s)
+[PASS] duplicate merged: Not interested in sales roles.: appears 1 time(s)
+[PASS] duplicate merged: Built a Kafka data pipeline for a course: appears 0 time(s)
+[PASS] resolved C1 city: Sunnyvale -> Palo Alto: old fact present: False, new fact present: True
+[PASS] resolved C2 job type: internships only -> full-time: old fact present: False, new fact present: True
+[PASS] resolved C3 remote: on-site only -> open to remote: old fact present: False, new fact present: True
+[PASS] resolved C4 graduation: May 2027 -> December 2027: old fact present: False, new fact present: True
+[PASS] resolved C5 minimum salary: 70,000 -> 85,000: old fact present: False, new fact present: True
+
+RESULT: 10/10 checks passed

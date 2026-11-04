@@ -1,0 +1,174 @@
+Seeded 62 memory entries for student 1: 27 facts, 4 exact-duplicate groups, 5 contradictions
+
+===== BEFORE (62) =====
+  1. 2026-08-03 | education | Studying for an MS in Applied Data Intelligence at SJSU.
+  2. 2026-08-03 | education | Studying for an MS in Applied Data Intelligence at SJSU.
+  3. 2026-08-03 | education | Expects to graduate in May 2027.
+  4. 2026-08-03 | location | Lives in Sunnyvale.
+  5. 2026-08-03 | preference | Looking for internships only.
+  6. 2026-08-03 | skill | Strong in Python.
+  7. 2026-08-03 | skill | Knows SQL well.
+  8. 2026-08-03 | goal | Wants to become a data engineer.
+  9. 2026-08-05 | preference | Prefers on-site work and does not want remote jobs.
+ 10. 2026-08-05 | preference | Minimum acceptable salary is 70,000 dollars.
+ 11. 2026-08-06 | location | Wants to stay in the Bay Area.
+ 12. 2026-08-08 | experience | Teaching assistant for an introductory statistics course.
+ 13. 2026-08-11 | skill | strong in python
+ 14. 2026-08-11 | skill | Builds dashboards in Tableau.
+ 15. 2026-08-12 | constraint | Will not take unpaid positions.
+ 16. 2026-08-14 | preference | Interested in healthcare analytics.
+ 17. 2026-08-14 | constraint | Not interested in sales roles.
+ 18. 2026-08-17 | preference | Only wants internship roles right now.
+ 19. 2026-08-19 | availability | Available about 20 hours a week during the semester.
+ 20. 2026-08-19 | constraint | Needs jobs reachable by Caltrain.
+ 21. 2026-08-21 | education | Planned graduation date is May 2027.
+ 22. 2026-08-22 | preference | Prefers companies with fewer than 500 employees.
+ 23. 2026-08-24 | preference | Wants to attend resume review events.
+ 24. 2026-08-24 | availability | Prefers events in the evening.
+ 25. 2026-08-25 | location | Based in Sunnyvale and wants jobs near home.
+ 26. 2026-08-27 | goal | Long-term goal is a data engineering role.
+ 27. 2026-08-28 | experience | Keeps a portfolio of projects on GitHub.
+ 28. 2026-08-30 | preference | Prefers in-office roles over remote ones.
+ 29. 2026-08-30 | skill | Prefers Python over R for analysis.
+ 30. 2026-09-01 | goal | Currently learning Apache Spark.
+ 31. 2026-09-02 | preference | Interested in internships, not full-time jobs.
+ 32. 2026-09-03 | constraint | Not interested in sales roles.
+ 33. 2026-09-05 | skill | Comfortable writing complex SQL queries.
+ 34. 2026-09-07 | goal | Interested in MLOps.
+ 35. 2026-09-08 | experience | Built a Kafka data pipeline for a course project.
+ 36. 2026-09-08 | experience | Built a Kafka data pipeline for a course project.
+ 37. 2026-09-10 | preference | Will not consider roles paying under 70,000 dollars a year.
+ 38. 2026-09-12 | experience | Works as a TA for intro statistics.
+ 39. 2026-09-14 | education | Is a master's student in Applied Data Intelligence at San Jose State.
+ 40. 2026-09-16 | availability | Can work roughly 20 hours per week while classes are in session.
+ 41. 2026-09-19 | preference | Values mentorship programs at employers.
+ 42. 2026-09-20 | skill | Uses Python for most data analysis work.
+ 43. 2026-09-21 | constraint | Avoids unpaid internships and roles.
+ 44. 2026-09-22 | preference | Would like to work on healthcare data.
+ 45. 2026-09-25 | preference | Interested in resume workshops and review sessions.
+ 46. 2026-09-25 | availability | Can only attend events after 5 pm.
+ 47. 2026-09-28 | skill | Has Tableau dashboard experience.
+ 48. 2026-09-29 | constraint | Commutes by Caltrain, so the office must be near a station.
+ 49. 2026-09-30 | experience | Attended a Data Analytics information session in Cupertino.
+ 50. 2026-10-01 | preference | Likes smaller companies, under 500 people.
+ 51. 2026-10-02 | location | Moved to Palo Alto; now lives there.
+ 52. 2026-10-04 | skill | Chooses Python rather than R for analytics work.
+ 53. 2026-10-06 | goal | Is learning Spark for big data processing.
+ 54. 2026-10-09 | goal | Aims for a career in data engineering.
+ 55. 2026-10-11 | goal | Wants to learn more about deploying machine learning models (MLOps).
+ 56. 2026-10-12 | preference | No longer wants internships; now looking for full-time roles.
+ 57. 2026-10-15 | location | Current city is Palo Alto.
+ 58. 2026-10-16 | location | Plans to keep working in the San Francisco Bay Area.
+ 59. 2026-10-18 | preference | Is now open to fully remote jobs.
+ 60. 2026-10-20 | education | Graduation moved to December 2027 after adding a thesis.
+ 61. 2026-10-22 | preference | Wants full-time positions starting after graduation.
+ 62. 2026-10-24 | preference | Raised minimum salary to 85,000 dollars.
+
+Published to p15.memory.consolidate: event_id=393cceefee124d979d45b2542dcd44f2 trace_id=2b3883aa1a2c4156b0c2182755bc900c; waiting for the memory worker...
+  ...still waiting (1s)
+  ...still waiting (31s)
+  ...still waiting (61s)
+  ...still waiting (91s)
+  ...still waiting (121s)
+  ...still waiting (152s)
+  ...still waiting (182s)
+
+===== AFTER (58) =====
+  1. 2026-08-03 | education | Studying for an MS in Applied Data Intelligence at SJSU.
+  2. 2026-08-03 | education | Expects to graduate in May 2027.
+  3. 2026-08-03 | location | Lives in Sunnyvale.
+  4. 2026-08-03 | preference | Looking for internships only.
+  5. 2026-08-03 | skill | Knows SQL well.
+  6. 2026-08-03 | goal | Wants to become a data engineer.
+  7. 2026-08-05 | preference | Prefers on-site work and does not want remote jobs.
+  8. 2026-08-05 | preference | Minimum acceptable salary is 70,000 dollars.
+  9. 2026-08-06 | location | Wants to stay in the Bay Area.
+ 10. 2026-08-08 | experience | Teaching assistant for an introductory statistics course.
+ 11. 2026-08-11 | skill | Strong in Python.
+ 12. 2026-08-11 | skill | Builds dashboards in Tableau.
+ 13. 2026-08-12 | constraint | Will not take unpaid positions.
+ 14. 2026-08-14 | preference | Interested in healthcare analytics.
+ 15. 2026-08-17 | preference | Only wants internship roles right now.
+ 16. 2026-08-19 | availability | Available about 20 hours a week during the semester.
+ 17. 2026-08-19 | constraint | Needs jobs reachable by Caltrain.
+ 18. 2026-08-21 | education | Planned graduation date is May 2027.
+ 19. 2026-08-22 | preference | Prefers companies with fewer than 500 employees.
+ 20. 2026-08-24 | preference | Wants to attend resume review events.
+ 21. 2026-08-24 | availability | Prefers events in the evening.
+ 22. 2026-08-25 | location | Based in Sunnyvale and wants jobs near home.
+ 23. 2026-08-27 | goal | Long-term goal is a data engineering role.
+ 24. 2026-08-28 | experience | Keeps a portfolio of projects on GitHub.
+ 25. 2026-08-30 | preference | Prefers in-office roles over remote ones.
+ 26. 2026-08-30 | skill | Prefers Python over R for analysis.
+ 27. 2026-09-01 | goal | Currently learning Apache Spark.
+ 28. 2026-09-02 | preference | Interested in internships, not full-time jobs.
+ 29. 2026-09-03 | constraint | Not interested in sales roles.
+ 30. 2026-09-05 | skill | Comfortable writing complex SQL queries.
+ 31. 2026-09-07 | goal | Interested in MLOps.
+ 32. 2026-09-08 | experience | Built a Kafka data pipeline for a course project.
+ 33. 2026-09-10 | preference | Will not consider roles paying under 70,000 dollars a year.
+ 34. 2026-09-12 | experience | Works as a TA for intro statistics.
+ 35. 2026-09-14 | education | Is a master's student in Applied Data Intelligence at San Jose State.
+ 36. 2026-09-16 | availability | Can work roughly 20 hours per week while classes are in session.
+ 37. 2026-09-19 | preference | Values mentorship programs at employers.
+ 38. 2026-09-20 | skill | Uses Python for most data analysis work.
+ 39. 2026-09-21 | constraint | Avoids unpaid internships and roles.
+ 40. 2026-09-22 | preference | Would like to work on healthcare data.
+ 41. 2026-09-25 | preference | Interested in resume workshops and review sessions.
+ 42. 2026-09-25 | availability | Can only attend events after 5 pm.
+ 43. 2026-09-28 | skill | Has Tableau dashboard experience.
+ 44. 2026-09-29 | constraint | Commutes by Caltrain, so the office must be near a station.
+ 45. 2026-09-30 | experience | Attended a Data Analytics information session in Cupertino.
+ 46. 2026-10-01 | preference | Likes smaller companies, under 500 people.
+ 47. 2026-10-02 | location | Moved to Palo Alto; now lives there.
+ 48. 2026-10-04 | skill | Chooses Python rather than R for analytics work.
+ 49. 2026-10-06 | goal | Is learning Spark for big data processing.
+ 50. 2026-10-09 | goal | Aims for a career in data engineering.
+ 51. 2026-10-11 | goal | Wants to learn more about deploying machine learning models (MLOps).
+ 52. 2026-10-12 | preference | No longer wants internships; now looking for full-time roles.
+ 53. 2026-10-15 | location | Current city is Palo Alto.
+ 54. 2026-10-16 | location | Plans to keep working in the San Francisco Bay Area.
+ 55. 2026-10-18 | preference | Is now open to fully remote jobs.
+ 56. 2026-10-20 | education | Graduation moved to December 2027 after adding a thesis.
+ 57. 2026-10-22 | preference | Wants full-time positions starting after graduation.
+ 58. 2026-10-24 | preference | Raised minimum salary to 85,000 dollars.
+
+===== HOW IT WAS DONE =====
+method=deterministic_fallback  model_attempts=2  model_time_ms=196081  end_to_end_s=197.7
+
+===== DECISIONS =====
+- [code] merged_exact_duplicates sources=[1, 2]
+    kept: 2026-08-03 | education | Studying for an MS in Applied Data Intelligence at SJSU.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+- [code] merged_exact_duplicates sources=[6, 13]
+    kept: 2026-08-11 | skill | Strong in Python.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+- [code] merged_exact_duplicates sources=[17, 32]
+    kept: 2026-09-03 | constraint | Not interested in sales roles.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+- [code] merged_exact_duplicates sources=[35, 36]
+    kept: 2026-09-08 | experience | Built a Kafka data pipeline for a course project.
+    reason: 2 entries with the same text (ignoring case and punctuation); kept the newest date and the original wording
+
+===== MODEL ANSWERS REJECTED BY VALIDATION (then re-prompted) =====
+- attempt 1:
+    These input entries appear in more than one output entry: [18, 22, 35, 38, 48, 49, 51, 52, 54, 55, 56, 57].
+- attempt 2:
+    These input entries appear in more than one output entry: [18, 22, 35, 38, 48, 49, 51, 52, 54, 55, 56, 57].
+
+===== MODEL VALUES CORRECTED BY CODE IN THE ACCEPTED ANSWER =====
+- (none)
+
+===== CHECKS =====
+[FAIL] fewer than 40 entries: 58 entries
+[PASS] duplicate merged: Studying for an MS in Applied Data Intel: appears 1 time(s)
+[PASS] duplicate merged: Strong in Python.: appears 1 time(s)
+[PASS] duplicate merged: Not interested in sales roles.: appears 1 time(s)
+[PASS] duplicate merged: Built a Kafka data pipeline for a course: appears 1 time(s)
+[FAIL] resolved C1 city: Sunnyvale -> Palo Alto: old fact present: True, new fact present: True
+[FAIL] resolved C2 job type: internships only -> full-time: old fact present: True, new fact present: True
+[FAIL] resolved C3 remote: on-site only -> open to remote: old fact present: True, new fact present: True
+[FAIL] resolved C4 graduation: May 2027 -> December 2027: old fact present: True, new fact present: True
+[FAIL] resolved C5 minimum salary: 70,000 -> 85,000: old fact present: True, new fact present: True
+
+RESULT: 4/10 checks passed; 62 -> 58 entries
