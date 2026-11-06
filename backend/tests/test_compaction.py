@@ -166,3 +166,42 @@ def test_warning_above_70_and_auto_compaction_above_threshold(api):
     stored = db.conversations.find_one({"_id": warned["session_id"]})["messages"]
     assert stored[0]["content"].startswith("[Session summary")
     model.prompt_tokens = 1500
+
+
+def test_tools_used_survives_auto_compaction(api):
+    """Nov 6 real run: after an automatic compaction the demo saw no tool calls,
+    because the returned conversation had been replaced by the summary."""
+    _, _, _, model = api
+    model.prompt_tokens = 6500            # every turn crosses the 75% threshold
+    first = chat(api, "Find internships in Sunnyvale.")
+    assert first["compaction"]["reason"] == "threshold"
+    assert first["tools_used"] == ["search_jobs"]
+    follow = chat(api, "From the last job results, make it higher paying.", first["session_id"])
+    assert follow["tools_used"] == ["rank_jobs"]
+    model.prompt_tokens = 1500
+
+
+def test_compact_is_skipped_when_it_would_not_save_tokens(api):
+    """Nov 6 real run: on a tiny session /compact made the history larger
+    (2263 -> 2464 tokens). Now the history is kept and the report says skipped."""
+    _, _, db, _ = api
+    from services.assistant import compaction
+    tiny = [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "Hello!"}]
+    new, report = compaction.compact(db, 1, tiny, "/compact", session_id="tiny")
+    assert report["skipped"] is True and report["saved_pct"] == 0.0, report
+    assert report["tokens_after"] == report["tokens_before"]
+    assert new == tiny
+
+
+def test_compact_command_reports_a_skip(api):
+    _, _, _, _ = api
+    from services.assistant import compaction
+    real = compaction.compact
+    compaction.compact = lambda db, sid, conv, text, **kw: real(db, sid, conv[:0] or
+                                                               [{"role": "user", "content": "hi"}], text, **kw)
+    try:
+        result = chat(api, "/compact", chat(api, "Hello")["session_id"])
+    finally:
+        compaction.compact = real
+    assert result["compaction"]["skipped"] is True
+    assert result["answer"].startswith("Nothing to compact")

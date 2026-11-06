@@ -59,8 +59,17 @@ After every model call the client records Ollama's `prompt_eval_count` and
 `eval_count` (or a 4-characters-per-token estimate, flagged `estimated`, for
 a model that reports none). Each call is stored in `token_usage`, and each
 session keeps `tokens_total` and `last_context_pct`. The context window is
-fixed with Ollama's `num_ctx` (`OLLAMA_NUM_CTX`, default 8192), so the
-percentage has a real denominator.
+fixed with Ollama's `num_ctx` (`OLLAMA_NUM_CTX`), so the percentage has a
+real denominator. Docker Compose sets **16384**, the same value the memory
+worker uses (so Ollama keeps one copy of the model loaded instead of
+reloading it for each window size).
+
+**Why 16384, not 8192 (first real run, Nov 6):** at 8192 a single job
+search already used 74% of the window (14 rules, up to 40 memory entries,
+11 tool schemas and the search result), every later turn crossed the 75%
+threshold and was compacted automatically, and one turn reached 111.8%, which
+means Ollama silently dropped the start of the prompt (the system rules).
+That run is kept in `docs/evidence/compaction_demo_8k.txt`.
 
 **Response fields for the UI** (`POST /assistant/chat` and `/assistant/confirm`):
 
@@ -72,7 +81,9 @@ percentage has a real denominator.
   "calls": [{"call": 1, "prompt_tokens": 1600, "completion_tokens": 60,
              "inference_ms": 30.0, "queue_wait_ms": 20.1}, ...]
 },
-"compaction": { ... present only when this turn compacted the session ... },
+"tools_used": ["search_jobs", "rank_jobs"],   // this turn, recorded before any compaction
+"compaction": { ... present only when this turn compacted the session;
+                "skipped": true when a summary would not have been smaller ... },
 "trace_id": "4b7e...", "session_id": "..."
 ```
 

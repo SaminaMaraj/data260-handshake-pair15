@@ -53,6 +53,9 @@ def get(base, path, token):
 
 
 def tools_used(result):
+    """This turn's tool calls (reported by the API before any auto-compaction)."""
+    if "tools_used" in result:
+        return result["tools_used"]
     return [tc["function"]["name"] for m in result["conversation"] if m.get("role") == "assistant"
             for tc in m.get("tool_calls") or []]
 
@@ -63,6 +66,7 @@ def main():
     parser.add_argument("--email", default="p15.student.0001@example.com")
     parser.add_argument("--password", default="Pair15SeedPassword!")
     args = parser.parse_args()
+    sys.stdout.reconfigure(line_buffering=True)  # show progress when piped into tee
 
     token = post(args.base, "/users/login", {"email": args.email, "password": args.password})["access_token"]
     session = None
@@ -71,7 +75,7 @@ def main():
         r = post(args.base, "/assistant/chat", {"message": message, **({"session_id": session} if session else {})}, token)
         session = r["session_id"]
         t = r["tokens"]
-        print(f"\nTurn {n}: {message}\n  tools: {tools_used(r)[-3:]}  status: {r['status']}")
+        print(f"\nTurn {n}: {message}\n  tools: {tools_used(r)}  status: {r['status']}")
         print(f"  tokens this turn: {t['prompt_tokens']} prompt + {t['completion_tokens']} completion"
               f" | context {t['context_used']}/{t['context_window']} = {t['context_pct']}%"
               f"{'  WARNING > 70%' if t['warning'] else ''}  trace {r['trace_id']}")
@@ -85,7 +89,8 @@ def main():
     print(f"messages {rep['messages_before']} -> {rep['messages_after']}")
     print(f"tokens   {rep['tokens_before']} -> {rep['tokens_after']} (saved {rep['saved_pct']}%)")
     print(f"context  {rep['context_pct_before']}% -> {rep['context_pct_after']}% of the context window")
-    print(f"kept last search verbatim: {rep['kept_last_search']}")
+    print(f"kept last search verbatim: {rep['kept_last_search']}"
+          f"{'  (skipped: a summary would not be smaller)' if rep.get('skipped') else ''}")
 
     prefs = get(args.base, "/students/me/preferences", token)
     summary_companies = set(re.findall(r"Pair 15 Company \d{4}", json.dumps(r["conversation"])))
@@ -94,8 +99,10 @@ def main():
     for kind, question in RECALL:
         r = post(args.base, "/assistant/chat", {"message": question, "session_id": session}, token)
         used = tools_used(r)
-        print(f"\nQ: {question}\n  tools: {used[-3:]}  status: {r['status']}  "
-              f"context {r['tokens']['context_pct']}%\n  A: {r['answer'][:400]}")
+        print(f"\nQ: {question}\n  tools: {used}  status: {r['status']}  "
+              f"context {r['tokens']['context_pct']}%  trace {r['trace_id']}\n  A: {r['answer']}")
+        if r.get("compaction"):
+            print(f"  AUTO-COMPACTED: {r['compaction']}")
         if kind == "city":
             ok = bool(prefs.get("preferred_city")) and prefs["preferred_city"].lower() in r["answer"].lower()
             checks.append((f"recalls preferred city ({prefs.get('preferred_city')})", ok))

@@ -16,7 +16,9 @@ a summary that keeps what later turns need:
 The summary is built by code from tool results and the database, not by the
 model, so no value can be paraphrased or invented. It is labelled as data.
 Token counts before and after are reported, and the compaction is stored in
-the `compactions` collection.
+the `compactions` collection. If the summary would not be smaller than the
+history (a short or already-compacted session), the history is kept and the
+report says "skipped".
 """
 import html
 import json
@@ -137,7 +139,14 @@ def compact(db, student_id: int, conversation: list[dict], current_request: str,
               "context_pct_before": round(100 * before / window, 1),
               "context_pct_after": round(100 * after / window, 1),
               "saved_pct": round(100 * (before - after) / max(1, before), 1),
-              "kept_last_search": last_search is not None, "estimated": True}
+              "kept_last_search": last_search is not None, "estimated": True,
+              "skipped": after >= before}
+    if report["skipped"]:
+        # A short or already-compacted session: the summary would not be smaller,
+        # so keep the conversation as it is (and say so) instead of growing it.
+        report.update(messages_after=len(conversation), tokens_after=before,
+                      context_pct_after=report["context_pct_before"], saved_pct=0.0)
+        new = conversation
     db[COMPACTIONS].insert_one({"student_id": student_id, "session_id": session_id,
                                 "trace_id": tracing.current_trace_id(), "at": utcnow(),
                                 "summary": summary, **report})

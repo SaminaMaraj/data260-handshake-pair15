@@ -71,23 +71,33 @@ def assistant_chat(request: AssistantChatRequest,
     elif text.lower() in ("/compact", "/compact now"):
         compacted, report = compaction.compact(db, user.id, conversation, text,
                                                session_id=session_id, reason="command")
-        answer = (f"Compacted this session: about {report['tokens_before']} -> "
-                  f"{report['tokens_after']} tokens ({report['context_pct_before']}% -> "
-                  f"{report['context_pct_after']}% of the context window). I kept your "
-                  "preferences, the jobs, companies and events we looked at, your "
-                  "applications, and your latest search.")
+        if report.get("skipped"):
+            answer = (f"Nothing to compact: this session uses about {report['tokens_before']} "
+                      f"tokens ({report['context_pct_before']}% of the context window), and a "
+                      "summary would not be smaller.")
+        else:
+            answer = (f"Compacted this session: about {report['tokens_before']} -> "
+                      f"{report['tokens_after']} tokens ({report['context_pct_before']}% -> "
+                      f"{report['context_pct_after']}% of the context window). I kept your "
+                      "preferences, the jobs, companies and events we looked at, your "
+                      "applications, and your latest search.")
         result = {"answer": answer, "compaction": report,
                   **_command_result(compacted, None, None, "compact")}
     else:
         result = run_assistant(user_message=request.message, conversation=conversation,
                                student_id=user.id)
+        # Recorded before any compaction, which replaces this turn's messages.
+        result["tools_used"] = _turn_tools(result.get("conversation") or [], len(conversation))
         # Automatic compaction once the session uses most of the context window.
         if result.get("tokens", {}).get("context_pct", 0) >= compaction.COMPACT_THRESHOLD_PCT \
                 and result.get("status") == "completed":
             compacted, report = compaction.compact(db, user.id, result["conversation"],
                                                    request.message, session_id=session_id,
                                                    reason="threshold")
-            result["conversation"], result["compaction"] = compacted, report
+            if report.get("skipped"):
+                result["compaction"] = report
+            else:
+                result["conversation"], result["compaction"] = compacted, report
 
     memory.save_session(db, session_id, user.id, result["conversation"])
     _record_tokens(db, user.id, session_id, result)  # after the session document exists
@@ -95,6 +105,12 @@ def assistant_chat(request: AssistantChatRequest,
     log_activity(db, user.id, "assistant_chat", status=result.get("status"),
                  tool_calls=result.get("tool_calls"), session_id=session_id)
     return result
+
+
+def _turn_tools(conversation: list[dict], start: int) -> list[str]:
+    """Names of the tools the model called in this turn, in order."""
+    return [tc["function"]["name"] for m in conversation[start:] if m.get("role") == "assistant"
+            for tc in m.get("tool_calls") or []]
 
 
 def _command_result(conversation, text, answer, command) -> dict:

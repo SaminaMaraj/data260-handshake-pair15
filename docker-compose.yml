@@ -27,7 +27,7 @@ x-kafka-env: &kafka-env
 x-model-env: &model-env
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
   OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
-  OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+  OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-16384}
 
 x-after-seed: &after-seed
   p15-mongo:
