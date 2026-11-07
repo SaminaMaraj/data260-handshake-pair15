@@ -56,16 +56,27 @@ def _post(url, body, headers=None, timeout=300):
 
 
 def load(args):
-    status, body, _, _ = _post(f"{args.base}/users/login",
-                               {"email": args.email, "password": args.password})
-    if status != 200:
-        sys.exit(f"login failed ({status}): {body}")
-    headers = {"Authorization": f"Bearer {body['access_token']}"}
+    headers = {}
+
+    def login():
+        status, body, _, _ = _post(f"{args.base}/users/login",
+                                   {"email": args.email, "password": args.password})
+        if status != 200:
+            sys.exit(f"login failed ({status}): {body}")
+        headers["Authorization"] = f"Bearer {body['access_token']}"
+
+    login()
 
     def one(i):
         prompt = PROMPTS[i % len(PROMPTS)]
         code, result, res_headers, started = _post(f"{args.base}/assistant/chat",
                                                    {"message": prompt}, headers)
+        if code == 401:
+            # Sessions expire after SESSION_TTL_MINUTES (30): log in again and retry.
+            print(f"     session expired at request {i + 1}: logging in again", flush=True)
+            login()
+            code, result, res_headers, started = _post(f"{args.base}/assistant/chat",
+                                                       {"message": prompt}, dict(headers))
         ms = (time.perf_counter() - started) * 1000
         line = (f"{i + 1:3}. {code} {result.get('status', '-'):22} {ms:8.0f} ms  "
                 f"trace={res_headers.get('X-Trace-Id', res_headers.get('x-trace-id', '-'))}  {prompt}")
@@ -106,8 +117,14 @@ def timeline(doc):
 def report(args):
     from services.common.mongo import database
     db = database()
-    docs = list(db.traces.find({"service": "p15-assistant", "name": "POST /assistant/chat"})
+    # Requests rejected before reaching the assistant (expired or missing login)
+    # say nothing about assistant latency, so they are counted but not analyzed.
+    query = {"service": "p15-assistant", "name": "POST /assistant/chat"}
+    rejected = db.traces.count_documents({**query, "http_status": {"$in": [401, 403]}})
+    docs = list(db.traces.find({**query, "http_status": {"$nin": [401, 403]}})
                 .sort("at", -1).limit(args.last))
+    if rejected:
+        print(f"(excluded {rejected} requests rejected by authentication, HTTP 401/403)")
     if not docs:
         sys.exit("No assistant traces stored yet: run the load command first.")
     docs.reverse()
