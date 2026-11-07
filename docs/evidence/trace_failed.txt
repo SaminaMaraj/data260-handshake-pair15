@@ -1,0 +1,6 @@
+trace_id 45bdbe46667a6f3bb886e127c68afe30  service p15-assistant  POST /assistant/chat
+status model_error  http 200  db_ops 9
+error  Ollama request failed: <urlopen error [Errno 101] Network is unreachable>
+  @      1.8 ms  model  chat                           0.5 ms  inference 0.5 ms, wait 0.0 ms, tokens 2552+28
+  stages: queue_wait 0.0 ms, model 0.5 ms, db 0.9 ms, tool 0.0 ms, other 1.2 ms, total 2.6 ms
+

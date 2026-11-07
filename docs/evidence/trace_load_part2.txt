@@ -1,0 +1,22 @@
+  1. 200 completed                 48528 ms  trace=84cc070f9ed5dc55411e000f29926b43  Find an internship in my city.
+  2. 200 completed                 79738 ms  trace=7bdfb13d8fabe7bce78fdd7c08433fb3  Find a remote data science internship.
+  3. 200 completed                 50357 ms  trace=ccf91d9ec868e589034e187bd86dcbe0  Find an event for computer science students next month.
+  4. 200 completed                 44629 ms  trace=faf5d6e9aff7dff06ffeb4346ce05b67  Find full-time jobs in Cupertino.
+  5. 200 completed                 62515 ms  trace=1b278647f2fe1917ada77a1f9a7a29fe  Show part-time jobs in Palo Alto.
+  6. 200 completed                 53927 ms  trace=d974b5c21450b4974d7a71264ad023f6  Find a job at Nonexistent Labs.
+  7. 200 completed                 39234 ms  trace=24ab53c12626f3225a9fc3ac99f6b62c  Find internships that pay at least 100000.
+  8. 200 completed                 37705 ms  trace=91835eb524db1aa01e207f11e3f92ff9  What resume review events are coming up?
+  9. 200 completed                 45754 ms  trace=10737ab7478ca3cdf1d94583b37674a2  Find analyst jobs with SQL skills.
+ 10. 200 completed                 90872 ms  trace=cc9bc550e7385893596153b6981d7eeb  Find on-campus jobs.
+ 11. 200 completed                 34959 ms  trace=b994b22184ea4a7bbf6db82abcd26b20  Find an internship in my city.
+ 12. 200 completed                 95150 ms  trace=386faae39fd6ffa853083d598b8f1172  Find a remote data science internship.
+ 13. 200 completed                 65417 ms  trace=ddf7233c08efcf5aaadeab950b90926d  Find an event for computer science students next month.
+ 14. 200 completed                 45618 ms  trace=e3e7b83832baaf818951111c567ddd5b  Find full-time jobs in Cupertino.
+ 15. 200 completed                 77488 ms  trace=bdaa8d74e89668d0b24ded3311f85be8  Show part-time jobs in Palo Alto.
+ 16. 200 completed                 19563 ms  trace=90a7bfeb9cfadaeb88f58ac1533d9fa8  Find a job at Nonexistent Labs.
+ 17. 200 completed                 34689 ms  trace=72ae0a139b863042b27bb412f6f7cbce  Find internships that pay at least 100000.
+ 18. 200 completed                 67094 ms  trace=14d7776e5111d63d8d2eba0e2299d712  What resume review events are coming up?
+ 19. 200 completed                 63258 ms  trace=c8d9b12e9b64d1e69c2a9984aa192fbf  Find analyst jobs with SQL skills.
+ 20. 200 completed                 88329 ms  trace=10ca59b6bdb37db6bf812405726bb5c5  Find on-campus jobs.
+
+20 requests, concurrency 1, 20 HTTP 200, 1144.8 s

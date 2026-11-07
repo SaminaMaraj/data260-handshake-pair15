@@ -1,0 +1,27 @@
+(excluded 21 requests rejected by authentication, HTTP 401/403)
+===== 50 assistant requests =====
+total latency  mean    59724 ms   p50    59567 ms   p95   100121 ms   p99   123276 ms
+
+stage           mean ms     p50 ms     p95 ms    share
+queue_wait         11.1       10.2       20.0     0.0%
+model           59688.7    59533.2   100082.4    99.9%
+db                  9.0        8.5       15.0     0.0%
+tool                2.1        2.0        5.0     0.0%
+other              13.0       11.9       18.1     0.0%
+
+DOMINANT STAGE: model (99.9% of all assistant latency)
+statuses: {'completed': 50}
+tokens per request: mean 7577, max 22636
+
+===== one successful trace =====
+trace_id 10ca59b6bdb37db6bf812405726bb5c5  service p15-assistant  POST /assistant/chat
+status completed  http 200  db_ops 10
+  @  39559.7 ms  model  chat                       39552.9 ms  inference 39546.7 ms, wait 6.2 ms, tokens 1948+875
+  @  39565.8 ms  tool   search_jobs                    5.1 ms  (db 2.8 ms)
+  @  88311.7 ms  model  chat                       48742.2 ms  inference 48736.0 ms, wait 6.2 ms, tokens 4650+958
+  stages: queue_wait 12.4 ms, model 88282.7 ms, db 8.7 ms, tool 2.3 ms, other 14.4 ms, total 88320.5 ms
+
+===== one failed trace =====
+trace_id 00b6b418ade76e5bf7b0d31e71ffec9a  service p15-assistant  POST /assistant/chat
+status client_error  http 401  db_ops 0
+  stages: queue_wait 0.0 ms, model 0 ms, db 0.0 ms, tool 0.0 ms, other 0.5 ms, total 0.5 ms
