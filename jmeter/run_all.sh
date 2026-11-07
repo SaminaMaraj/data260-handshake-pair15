@@ -26,7 +26,7 @@ HTML=${HTML:-1}                       # 0 = skip the per-run HTML dashboards
 
 BASE="$PROTOCOL://$HOST:$PORT"
 OUT=jmeter/results
-mkdir -p "$OUT"
+mkdir -p "$OUT/html"   # JMeter only creates the last folder of -o
 command -v jmeter >/dev/null || { echo "jmeter not found: brew install jmeter"; exit 1; }
 
 echo "Checking the plan against $BASE first..."
