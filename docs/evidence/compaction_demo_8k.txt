@@ -1,0 +1,71 @@
+===== SESSION (real model) =====
+
+Turn 1: Find an internship in my city.
+  tools: ['search_jobs']  status: completed
+  tokens this turn: 7253 prompt + 2244 completion | context 6094/8192 = 74.4%  WARNING > 70%  trace c58e4aee23750dc11710b774f6bc27b5
+  answer: Here are internships in Palo Alto matching your skills (SQL, Python, Machine Learning) and preferences (remote-friendly, paid):  1. **Product Analyst** at Pair 15 Company 0021 - $103,106/year (remote: no)   2. **Software Engineer** at Pair 15 Company 0025 - $102,732/year (remote: yes)   3. **Machine
+
+Turn 2: Find a remote data science internship.
+  tools: []  status: completed
+  tokens this turn: 10408 prompt + 662 completion | context 6786/8192 = 82.8%  WARNING > 70%  trace fd1fc4125a818934ec1c3c9a2d5f59a1
+  answer: Here are remote data science internships matching your skills (Python, SQL, Machine Learning) and preferences:  1. **Research Assistant** at Pair 15 Company 0001 - $140,523/year (remote: yes)   2. **Business Analyst** at Pair 15 Company 0026 - $136,563/year (remote: yes)   3. **Product Analyst** at 
+  AUTO-COMPACTED: {'reason': 'threshold', 'messages_before': 8, 'messages_after': 3, 'tokens_before': 8272, 'tokens_after': 4978, 'context_pct_before': 101.0, 'context_pct_after': 60.8, 'saved_pct': 39.8, 'kept_last_search': True, 'estimated': True}
+
+Turn 3: Find an event for computer science students next month.
+  tools: []  status: completed
+  tokens this turn: 13260 prompt + 1836 completion | context 8057/8192 = 98.4%  WARNING > 70%  trace 0e9e925f7eab40ae5a08cca65ba7b813
+  answer: Here's a data analytics event in Sunnyvale next month that matches your major and location preferences:  **Data Analytics Information Session 50**   🗓️ Date: 2026-12-30   ⏰ Time: 4:00 PM   📍 Location: Sunnyvale   🎯 Eligibility: Computer Science students    Note: The event starts at 4:00 PM, which is
+  AUTO-COMPACTED: {'reason': 'threshold', 'messages_before': 7, 'messages_after': 3, 'tokens_before': 7106, 'tokens_after': 4631, 'context_pct_before': 86.7, 'context_pct_after': 56.5, 'saved_pct': 34.8, 'kept_last_search': True, 'estimated': True}
+
+Turn 4: Show full-time jobs in Cupertino.
+  tools: []  status: completed
+  tokens this turn: 12954 prompt + 1740 completion | context 9155/8192 = 111.8%  WARNING > 70%  trace 03e23e3a2c959d89847d2ecf05bd2bbf
+  answer: Here are full-time jobs in Cupertino that meet your criteria (salary ≥ $85k, remote options included):  1. **Product Analyst** - Pair 15 Company 0050      - Salary: $123,672.18 (Remote)      - Skills: SQL, React, Machine Learning    2. **Software Engineer** - Pair 15 Company 0030      - Salary: $97,
+  AUTO-COMPACTED: {'reason': 'threshold', 'messages_before': 7, 'messages_after': 3, 'tokens_before': 7520, 'tokens_after': 5136, 'context_pct_before': 91.8, 'context_pct_after': 62.7, 'saved_pct': 31.7, 'kept_last_search': True, 'estimated': True}
+
+===== /compact =====
+messages 3 -> 3
+tokens   5136 -> 4520 (saved 12.0%)
+context  62.7% -> 55.2% of the context window
+kept last search verbatim: True
+
+===== RECALL AFTER COMPACTION =====
+
+Q: Without searching again, what is my preferred city?
+  tools: ['get_student_preferences']  status: completed  context 72.2%
+  A: Your preferred city is Sunnyvale.
+
+Q: Which companies did we look at earlier in this session?
+  tools: []  status: completed  context 80.3%
+  A: The list of companies is available in the session summary data, as no specific tool exists to retrieve this information directly. Here are the companies we reviewed:
+
+1. Pair 15 Company 0002  
+2. Pair 15 Company 0004  
+3. Pair 15 Company 0008  
+4. Pair 15 Company 0013  
+5. Pair 15 Company 0014  
+6. Pair 15 Company 0016  
+7. Pair 15 Company 0026  
+8. Pair 15 Company 0028  
+9. Pair 15 Company 0029  
+
+Q: From the last job results, make it higher paying.
+  tools: []  status: completed  context 83.9%
+  A: Here are the highest-paying jobs from your search results:
+
+1. **Data Analyst** at Pair 15 Company 0013 ($144,184.38/year, full-time, Cupertino)  
+   - Skills: FastAPI, Statistics, React  
+   - Deadline: January 16, 2027  
+
+2. **Product Analyst** at Pair 15 Company 0008 ($140,630.06/year, full-time, Cupertino)  
+   - Skills: SQL, Machine Learning, Statistics  
+   - Deadline: December 7, 2026  
+
+3.
+
+===== CHECKS =====
+[PASS] recalls preferred city (Sunnyvale)
+[PASS] names companies from the session (15 matched)
+[FAIL] follow-up ranks the earlier results (rank_jobs, ids accepted)
+
+RESULT: 2/3 recall checks passed

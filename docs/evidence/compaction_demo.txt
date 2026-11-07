@@ -1,0 +1,59 @@
+===== SESSION (real model) =====
+
+Turn 1: Find an internship in my city.
+  tools: ['search_jobs']  status: completed
+  tokens this turn: 4752 prompt + 756 completion | context 3321/16384 = 20.3%  trace fdd0c1249b048389692a6b3d7f5959d6
+  answer: Here are internships in Palo Alto matching your criteria (remote OK, paid, skills: Python/SQL/Tableau/Kafka/Spark):  1. **Software Engineer** at Pair 15 Company 0025      $102,732/year | Remote | Skills: Python, MySQL, Machine Learning    2. **Research Assistant** at Pair 15 Company 0004      $102,5
+
+Turn 2: Find a remote data science internship.
+  tools: ['search_jobs']  status: completed
+  tokens this turn: 6816 prompt + 756 completion | context 4398/16384 = 26.8%  trace 8f64cb5f3036034158208cf48d9a5287
+  answer: Here are remote data science internships in Palo Alto (salary ≥ $85k):  1. **Software Engineer** @ Pair 15 Company 0025      $102,732/year | Skills: Python, MySQL, Machine Learning | Deadline: 2026-11-24    2. **Research Assistant** @ Pair 15 Company 0004      $102,540/year | Skills: SQL, Machine Le
+
+Turn 3: Find an event for computer science students next month.
+  tools: ['search_events']  status: completed
+  tokens this turn: 9914 prompt + 1183 completion | context 6418/16384 = 39.2%  trace 9dd8605158a29a173440163a7ba5e799
+  answer: Here are computer science student events in December 2026:  **December 9**   - 10:00 AM: Career Workshop 80 (Palo Alto)    **December 10**   - 10:00 AM: Technology Networking Event 78 (Cupertino)    **December 13**   - 12:00 PM: Data Analytics Information Session 30 (Palo Alto)    **December 17**   
+
+Turn 4: Show full-time jobs in Cupertino.
+  tools: ['search_jobs']  status: completed
+  tokens this turn: 12952 prompt + 1136 completion | context 7978/16384 = 48.7%  trace 16ffe8a1dff0574d6b549aed141665b6
+  answer: Here are full-time jobs in Cupertino matching your criteria (salary ≥ $85k, skills: Python/SQL/Tableau/Kafka/Spark):  **In-Person Roles**   1. **Product Analyst** @ Pair 15 Company 0008      $140,630/year | Skills: SQL, Machine Learning, Statistics | Deadline: 2026-12-07    2. **Product Analyst** @ 
+
+===== /compact =====
+messages 16 -> 3
+tokens   8963 -> 4253 (saved 52.5%)
+context  54.7% -> 26.0% of the context window
+kept last search verbatim: True
+
+===== RECALL AFTER COMPACTION =====
+
+Q: Without searching again, what is my preferred city?
+  tools: ['get_student_preferences']  status: completed  context 32.5%  trace 4fa6824d8d073a75ce0e9686081605ae
+  A: Your preferred city is Sunnyvale.
+
+Q: Which companies did we look at earlier in this session?
+  tools: []  status: completed  context 37.4%  trace 2c8148b6d11362562a3c3fb37c720cff
+  A: The companies we looked at earlier in this session include:  
+Pair 15 Company 0004, 0008, 0016, 0020, 0025, 0028, 0029, 0030, 0032, 0033, 0035, 0038, 0049, and 0050.
+
+(Note: I could not verify these against the database, so treat them as unconfirmed: Pair 15 Company 0004.)
+
+Q: From the last job results, make it higher paying.
+  tools: ['rank_jobs']  status: completed  context 42.6%  trace 32752fd4076ba94bbaaab6220396286f
+  A: Here are the highest-paying jobs from your last search:
+
+1. **Product Analyst** at Pair 15 Company 0008 (Cupertino, full-time, $140,630)  
+2. **Software Engineer** at Pair 15 Company 0029 (Cupertino, full-time, $140,369)  
+3. **Business Analyst** at Pair 15 Company 0035 (Cupertino, full-time, $137,935)  
+4. **Research Assistant** at Pair 15 Company 0035 (Cupertino, full-time, $132,928)  
+5. **Data Analyst** at Pair 15 Company 0016 (Cupertino, full-time, $129,503)  
+
+All are full-time roles in Cupertino. Would you like to refine by location or other filters?
+
+===== CHECKS =====
+[PASS] recalls preferred city (Sunnyvale)
+[PASS] names companies from the session (1 matched)
+[PASS] follow-up ranks the earlier results (rank_jobs, ids accepted)
+
+RESULT: 3/3 recall checks passed
