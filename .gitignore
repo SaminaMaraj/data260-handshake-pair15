@@ -16,3 +16,6 @@ jmeter/data/
 jmeter/results/*.jtl
 jmeter/results/*.log
 jmeter/results/html/
+jmeter/results_before/*.jtl
+jmeter/results_before/*.log
+jmeter/results_before/html/

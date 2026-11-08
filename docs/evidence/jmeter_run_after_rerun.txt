@@ -1,0 +1,352 @@
+Checking the plan against http://localhost:9150 first...
+Writing JMeter data to /Users/samina/Desktop/data260-handshake-pair15/jmeter/data
+  students.csv         200 rows
+  open_jobs.csv        300 rows
+  search_terms.csv       8 rows
+  event_terms.csv        5 rows
+  prompts.csv            8 rows
+  tokens.csv           200 rows
+[PASS] Login                    POST /users/login                                                 -> 200 (200)     180 ms  ['access_token', 'token_type', 'id']
+[PASS] Job search               GET  /jobs/search?q=analyst&location=Sunnyvale&category=internshi -> 200 (200)       3 ms  7 results
+[PASS] Application submission   POST /applications                                                -> 409 (201|202|409)       6 ms  You have already applied to this job.
+[PASS] Event search             GET  /events/search?q=Career&location=Sunnyvale                   -> 200 (200)       3 ms  34 results
+[PASS] Assistant chat           POST /assistant/chat                                              -> 200 (200)  102451 ms  completed
+
+OK: plan requests validated against http://localhost:9150
+== apply at 100 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:03:07 PST (1794103387538)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +  17103 in 00:00:22 =  763.4/s Avg:    49 Min:     1 Max:   300 Err:     0 (0.00%) Active: 75 Started: 75 Finished: 0
+summary +  21844 in 00:00:30 =  728.0/s Avg:   132 Min:    73 Max:   260 Err:     0 (0.00%) Active: 100 Started: 100 Finished: 0
+summary =  38947 in 00:00:52 =  743.1/s Avg:    96 Min:     1 Max:   300 Err:     0 (0.00%)
+summary +  18875 in 00:00:30 =  629.3/s Avg:   158 Min:   133 Max:   322 Err:     0 (0.00%) Active: 100 Started: 100 Finished: 0
+summary =  57822 in 00:01:22 =  701.7/s Avg:   116 Min:     1 Max:   322 Err:     0 (0.00%)
+summary +   5016 in 00:00:08 =  651.9/s Avg:   154 Min:    84 Max:   258 Err:     0 (0.00%) Active: 0 Started: 100 Finished: 100
+summary =  62838 in 00:01:30 =  697.4/s Avg:   119 Min:     1 Max:   322 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:04:37 PST (1794103477698)
+... end of run
+== apply at 200 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:04:56 PST (1794103496316)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +   2445 in 00:00:04 =  674.5/s Avg:    17 Min:     2 Max:    67 Err:     0 (0.00%) Active: 24 Started: 24 Finished: 0
+summary +  22762 in 00:00:30 =  758.6/s Avg:   160 Min:    18 Max:   429 Err:     0 (0.00%) Active: 200 Started: 200 Finished: 0
+summary =  25207 in 00:00:34 =  749.5/s Avg:   147 Min:     2 Max:   429 Err:     0 (0.00%)
+summary +  20597 in 00:00:30 =  686.7/s Avg:   290 Min:   211 Max:   471 Err:     0 (0.00%) Active: 200 Started: 200 Finished: 0
+summary =  45804 in 00:01:04 =  719.9/s Avg:   211 Min:     2 Max:   471 Err:     0 (0.00%)
+summary +  17354 in 00:00:27 =  652.7/s Avg:   307 Min:   182 Max:   509 Err:     0 (0.00%) Active: 0 Started: 200 Finished: 200
+summary =  63158 in 00:01:30 =  700.1/s Avg:   238 Min:     2 Max:   509 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:06:26 PST (1794103586589)
+... end of run
+== apply at 300 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:06:44 PST (1794103604898)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +  10841 in 00:00:15 =  720.2/s Avg:   103 Min:     1 Max:   259 Err:     0 (0.00%) Active: 151 Started: 151 Finished: 0
+summary +  19253 in 00:00:30 =  641.8/s Avg:   406 Min:   210 Max:   741 Err:     0 (0.00%) Active: 300 Started: 300 Finished: 0
+summary =  30094 in 00:00:45 =  668.0/s Avg:   297 Min:     1 Max:   741 Err:     0 (0.00%)
+summary +  18923 in 00:00:30 =  630.8/s Avg:   474 Min:   437 Max:   662 Err:     0 (0.00%) Active: 300 Started: 300 Finished: 0
+summary =  49017 in 00:01:15 =  653.1/s Avg:   365 Min:     1 Max:   741 Err:     0 (0.00%)
+summary +   9806 in 00:00:15 =  642.6/s Avg:   471 Min:   251 Max:   618 Err:     0 (0.00%) Active: 0 Started: 300 Finished: 300
+summary =  58823 in 00:01:30 =  651.3/s Avg:   383 Min:     1 Max:   741 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:08:15 PST (1794103695261)
+... end of run
+== apply at 400 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:08:33 PST (1794103713549)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +      1 in 00:00:00 =    9.7/s Avg:    16 Min:    16 Max:    16 Err:     0 (0.00%) Active: 1 Started: 1 Finished: 0
+summary +  18717 in 00:00:26 =  711.7/s Avg:   243 Min:     2 Max:   561 Err:     0 (0.00%) Active: 352 Started: 352 Finished: 0
+summary =  18718 in 00:00:26 =  709.0/s Avg:   243 Min:     2 Max:   561 Err:     0 (0.00%)
+summary +  19072 in 00:00:30 =  635.7/s Avg:   623 Min:   527 Max:   833 Err:     0 (0.00%) Active: 400 Started: 400 Finished: 0
+summary =  37790 in 00:00:56 =  670.0/s Avg:   435 Min:     2 Max:   833 Err:     0 (0.00%)
+summary +  19095 in 00:00:30 =  636.4/s Avg:   628 Min:   586 Max:   758 Err:     0 (0.00%) Active: 400 Started: 400 Finished: 0
+summary =  56885 in 00:01:26 =  658.3/s Avg:   499 Min:     2 Max:   833 Err:     0 (0.00%)
+summary +   2735 in 00:00:04 =  680.0/s Avg:   612 Min:   366 Max:   699 Err:     0 (0.00%) Active: 0 Started: 400 Finished: 400
+summary =  59620 in 00:01:30 =  659.3/s Avg:   505 Min:     2 Max:   833 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:10:04 PST (1794103804028)
+... end of run
+== apply at 500 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:10:22 PST (1794103822214)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +   5982 in 00:00:08 =  771.8/s Avg:    81 Min:     2 Max:   211 Err:     0 (0.00%) Active: 129 Started: 129 Finished: 0
+summary +  21822 in 00:00:30 =  727.6/s Avg:   490 Min:   138 Max:   973 Err:     0 (0.00%) Active: 500 Started: 500 Finished: 0
+summary =  27804 in 00:00:38 =  736.7/s Avg:   402 Min:     2 Max:   973 Err:     0 (0.00%)
+summary +  21404 in 00:00:30 =  713.3/s Avg:   700 Min:   629 Max:   991 Err:     0 (0.00%) Active: 500 Started: 500 Finished: 0
+summary =  49208 in 00:01:08 =  726.4/s Avg:   532 Min:     2 Max:   991 Err:     0 (0.00%)
+summary +  16455 in 00:00:23 =  723.3/s Avg:   697 Min:   435 Max:  1016 Err:     0 (0.00%) Active: 0 Started: 500 Finished: 500
+summary =  65663 in 00:01:30 =  725.6/s Avg:   573 Min:     2 Max:  1016 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:11:52 PST (1794103912754)
+... end of run
+# JMeter results (Pair 15)
+
+## CRUD endpoints
+
+| Endpoint | Users | Samples | Avg (ms) | p95 (ms) | Throughput (req/s) | Error % |
+|---|---|---|---|---|---|---|
+| Login | 100 | 3978 | 1910 | 2760 | 43.5 | 0.00 |
+| Login | 200 | 4163 | 3690 | 4960 | 44.9 | 0.00 |
+| Login | 300 | 4200 | 5558 | 7204 | 44.6 | 0.00 |
+| Login | 400 | 4392 | 7149 | 9007 | 46.0 | 0.00 |
+| Login | 500 | 4517 | 8857 | 11207 | 46.4 | 0.00 |
+| Job search | 100 | 78820 | 95 | 132 | 875.6 | 0.00 |
+| Job search | 200 | 75194 | 200 | 272 | 834.6 | 0.00 |
+| Job search | 300 | 84214 | 268 | 352 | 934.4 | 0.00 |
+| Job search | 400 | 75326 | 357 | 480 | 915.2 | 0.00 |
+| Job search | 500 | 645 | 533 | 1114 | 204.9 | 0.00 |
+| Application submission | 100 | 62838 | 120 | 176 | 698.0 | 0.00 |
+| Application submission | 200 | 63158 | 238 | 325 | 700.8 | 0.00 |
+| Application submission | 300 | 58823 | 384 | 524 | 652.0 | 0.00 |
+| Application submission | 400 | 59620 | 505 | 674 | 659.9 | 0.00 |
+| Application submission | 500 | 65663 | 574 | 740 | 726.2 | 0.00 |
+| Event search | 100 | 27948 | 46 | 89 | 995.5 | 0.00 |
+| Event search | 200 | 28805 | 97 | 185 | 991.3 | 0.00 |
+| Event search | 300 | 75706 | 298 | 412 | 839.6 | 0.00 |
+| Event search | 400 | 80808 | 372 | 504 | 895.3 | 0.00 |
+| Event search | 500 | 67450 | 558 | 751 | 746.6 | 0.00 |
+
+Response codes per run:
+
+- Login @ 100: {'200': 3978}
+- Login @ 200: {'200': 4163}
+- Login @ 300: {'200': 4200}
+- Login @ 400: {'200': 4392}
+- Login @ 500: {'200': 4517}
+- Job search @ 100: {'200': 78820}
+- Job search @ 200: {'200': 75194}
+- Job search @ 300: {'200': 84214}
+- Job search @ 400: {'200': 75326}
+- Job search @ 500: {'200': 645}
+- Application submission @ 100: {'409': 62598, '201': 240}
+- Application submission @ 200: {'409': 63023, '201': 135}
+- Application submission @ 300: {'409': 58809, '201': 14}
+- Application submission @ 400: {'409': 59579, '201': 41}
+- Application submission @ 500: {'409': 65529, '201': 134}
+- Event search @ 100: {'200': 27948}
+- Event search @ 200: {'200': 28805}
+- Event search @ 300: {'200': 75706}
+- Event search @ 400: {'200': 80808}
+- Event search @ 500: {'200': 67450}
+
+Wrote jmeter/results/response_time_vs_concurrency.png
+Checking the plan against http://localhost:9150 first...
+Writing JMeter data to /Users/samina/Desktop/data260-handshake-pair15/jmeter/data
+  students.csv         200 rows
+  open_jobs.csv        300 rows
+  search_terms.csv       8 rows
+  event_terms.csv        5 rows
+  prompts.csv            8 rows
+  tokens.csv           200 rows
+[PASS] Login                    POST /users/login                                                 -> 200 (200)     209 ms  ['access_token', 'token_type', 'id']
+[PASS] Job search               GET  /jobs/search?q=analyst&location=Sunnyvale&category=internshi -> 200 (200)       5 ms  7 results
+[PASS] Application submission   POST /applications                                                -> 409 (201|202|409)       4 ms  You have already applied to this job.
+[PASS] Event search             GET  /events/search?q=Career&location=Sunnyvale                   -> 200 (200)       5 ms  34 results
+[PASS] Assistant chat           POST /assistant/chat                                              -> 200 (200)   47670 ms  completed
+
+OK: plan requests validated against http://localhost:9150
+== event at 100 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:13:06 PST (1794103986870)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +  22128 in 00:00:23 =  959.0/s Avg:    40 Min:     1 Max:   160 Err:     0 (0.00%) Active: 77 Started: 77 Finished: 0
+summary +  26535 in 00:00:30 =  884.5/s Avg:   109 Min:    57 Max:   219 Err:     0 (0.00%) Active: 100 Started: 100 Finished: 0
+summary =  48663 in 00:00:53 =  916.9/s Avg:    78 Min:     1 Max:   219 Err:     0 (0.00%)
+summary +  24619 in 00:00:30 =  820.6/s Avg:   121 Min:   100 Max:   193 Err:     0 (0.00%) Active: 100 Started: 100 Finished: 0
+summary =  73282 in 00:01:23 =  882.2/s Avg:    92 Min:     1 Max:   219 Err:     0 (0.00%)
+summary +   5693 in 00:00:07 =  811.8/s Avg:   123 Min:    69 Max:   223 Err:     0 (0.00%) Active: 0 Started: 100 Finished: 100
+summary =  78975 in 00:01:30 =  876.7/s Avg:    95 Min:     1 Max:   223 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:14:37 PST (1794104077013)
+... end of run
+== event at 200 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:14:55 PST (1794104095594)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +   4153 in 00:00:04 =  953.2/s Avg:    15 Min:     1 Max:    44 Err:     0 (0.00%) Active: 29 Started: 29 Finished: 0
+summary +  29483 in 00:00:30 =  982.4/s Avg:   128 Min:    15 Max:   285 Err:     0 (0.00%) Active: 200 Started: 200 Finished: 0
+summary =  33636 in 00:00:34 =  978.7/s Avg:   114 Min:     1 Max:   285 Err:     0 (0.00%)
+summary +  26757 in 00:00:30 =  892.2/s Avg:   224 Min:   171 Max:   344 Err:     0 (0.00%) Active: 200 Started: 200 Finished: 0
+summary =  60393 in 00:01:04 =  938.4/s Avg:   163 Min:     1 Max:   344 Err:     0 (0.00%)
+summary +  20616 in 00:00:26 =  798.6/s Avg:   251 Min:   135 Max:   334 Err:     0 (0.00%) Active: 0 Started: 200 Finished: 200
+summary =  81009 in 00:01:30 =  898.4/s Avg:   185 Min:     1 Max:   344 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:16:25 PST (1794104185816)
+... end of run
+# JMeter results (Pair 15)
+
+## CRUD endpoints
+
+| Endpoint | Users | Samples | Avg (ms) | p95 (ms) | Throughput (req/s) | Error % |
+|---|---|---|---|---|---|---|
+| Login | 100 | 3978 | 1910 | 2760 | 43.5 | 0.00 |
+| Login | 200 | 4163 | 3690 | 4960 | 44.9 | 0.00 |
+| Login | 300 | 4200 | 5558 | 7204 | 44.6 | 0.00 |
+| Login | 400 | 4392 | 7149 | 9007 | 46.0 | 0.00 |
+| Login | 500 | 4517 | 8857 | 11207 | 46.4 | 0.00 |
+| Job search | 100 | 78820 | 95 | 132 | 875.6 | 0.00 |
+| Job search | 200 | 75194 | 200 | 272 | 834.6 | 0.00 |
+| Job search | 300 | 84214 | 268 | 352 | 934.4 | 0.00 |
+| Job search | 400 | 75326 | 357 | 480 | 915.2 | 0.00 |
+| Job search | 500 | 645 | 533 | 1114 | 204.9 | 0.00 |
+| Application submission | 100 | 62838 | 120 | 176 | 698.0 | 0.00 |
+| Application submission | 200 | 63158 | 238 | 325 | 700.8 | 0.00 |
+| Application submission | 300 | 58823 | 384 | 524 | 652.0 | 0.00 |
+| Application submission | 400 | 59620 | 505 | 674 | 659.9 | 0.00 |
+| Application submission | 500 | 65663 | 574 | 740 | 726.2 | 0.00 |
+| Event search | 100 | 78975 | 95 | 133 | 877.5 | 0.00 |
+| Event search | 200 | 81009 | 185 | 264 | 899.2 | 0.00 |
+| Event search | 300 | 75706 | 298 | 412 | 839.6 | 0.00 |
+| Event search | 400 | 80808 | 372 | 504 | 895.3 | 0.00 |
+| Event search | 500 | 67450 | 558 | 751 | 746.6 | 0.00 |
+
+Response codes per run:
+
+- Login @ 100: {'200': 3978}
+- Login @ 200: {'200': 4163}
+- Login @ 300: {'200': 4200}
+- Login @ 400: {'200': 4392}
+- Login @ 500: {'200': 4517}
+- Job search @ 100: {'200': 78820}
+- Job search @ 200: {'200': 75194}
+- Job search @ 300: {'200': 84214}
+- Job search @ 400: {'200': 75326}
+- Job search @ 500: {'200': 645}
+- Application submission @ 100: {'409': 62598, '201': 240}
+- Application submission @ 200: {'409': 63023, '201': 135}
+- Application submission @ 300: {'409': 58809, '201': 14}
+- Application submission @ 400: {'409': 59579, '201': 41}
+- Application submission @ 500: {'409': 65529, '201': 134}
+- Event search @ 100: {'200': 78975}
+- Event search @ 200: {'200': 81009}
+- Event search @ 300: {'200': 75706}
+- Event search @ 400: {'200': 80808}
+- Event search @ 500: {'200': 67450}
+
+Wrote jmeter/results/response_time_vs_concurrency.png
+Checking the plan against http://localhost:9150 first...
+Writing JMeter data to /Users/samina/Desktop/data260-handshake-pair15/jmeter/data
+  students.csv         200 rows
+  open_jobs.csv        300 rows
+  search_terms.csv       8 rows
+  event_terms.csv        5 rows
+  prompts.csv            8 rows
+  tokens.csv           200 rows
+[PASS] Login                    POST /users/login                                                 -> 200 (200)     207 ms  ['access_token', 'token_type', 'id']
+[PASS] Job search               GET  /jobs/search?q=analyst&location=Sunnyvale&category=internshi -> 200 (200)       6 ms  7 results
+[PASS] Application submission   POST /applications                                                -> 409 (201|202|409)       5 ms  You have already applied to this job.
+[PASS] Event search             GET  /events/search?q=Career&location=Sunnyvale                   -> 200 (200)       5 ms  34 results
+[PASS] Assistant chat           POST /assistant/chat                                              -> 200 (200)   31276 ms  completed
+
+OK: plan requests validated against http://localhost:9150
+== search at 500 users (ramp 30s, 90s) ==
+WARNING: package sun.awt.X11 not in java.desktop
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+WARN StatusConsoleListener The use of package scanning to locate plugins is deprecated and will be removed in a future release
+Creating summariser <summary>
+Created the tree successfully using jmeter/p15_load_test.jmx
+Starting standalone test @ 2026 Nov 7 18:17:23 PST (1794104243840)
+Waiting for possible Shutdown/StopTestNow/HeapDump/ThreadDump message on port 4445
+summary +   5802 in 00:00:06 =  948.3/s Avg:    52 Min:     2 Max:   140 Err:     0 (0.00%) Active: 102 Started: 102 Finished: 0
+summary +  27740 in 00:00:30 =  924.9/s Avg:   364 Min:    86 Max:   777 Err:     0 (0.00%) Active: 500 Started: 500 Finished: 0
+summary =  33542 in 00:00:36 =  928.9/s Avg:   310 Min:     2 Max:   777 Err:     0 (0.00%)
+summary +  27260 in 00:00:30 =  908.7/s Avg:   550 Min:   489 Max:   653 Err:     0 (0.00%) Active: 500 Started: 500 Finished: 0
+summary =  60802 in 00:01:06 =  919.7/s Avg:   418 Min:     2 Max:   777 Err:     0 (0.00%)
+summary +  21934 in 00:00:24 =  905.7/s Avg:   555 Min:   265 Max:   711 Err:     0 (0.00%) Active: 0 Started: 500 Finished: 500
+summary =  82736 in 00:01:30 =  915.9/s Avg:   454 Min:     2 Max:   777 Err:     0 (0.00%)
+Tidying up ...    @ 2026 Nov 7 18:18:54 PST (1794104334219)
+... end of run
+# JMeter results (Pair 15)
+
+## CRUD endpoints
+
+| Endpoint | Users | Samples | Avg (ms) | p95 (ms) | Throughput (req/s) | Error % |
+|---|---|---|---|---|---|---|
+| Login | 100 | 3978 | 1910 | 2760 | 43.5 | 0.00 |
+| Login | 200 | 4163 | 3690 | 4960 | 44.9 | 0.00 |
+| Login | 300 | 4200 | 5558 | 7204 | 44.6 | 0.00 |
+| Login | 400 | 4392 | 7149 | 9007 | 46.0 | 0.00 |
+| Login | 500 | 4517 | 8857 | 11207 | 46.4 | 0.00 |
+| Job search | 100 | 78820 | 95 | 132 | 875.6 | 0.00 |
+| Job search | 200 | 75194 | 200 | 272 | 834.6 | 0.00 |
+| Job search | 300 | 84214 | 268 | 352 | 934.4 | 0.00 |
+| Job search | 400 | 75326 | 357 | 480 | 915.2 | 0.00 |
+| Job search | 500 | 82736 | 455 | 592 | 916.7 | 0.00 |
+| Application submission | 100 | 62838 | 120 | 176 | 698.0 | 0.00 |
+| Application submission | 200 | 63158 | 238 | 325 | 700.8 | 0.00 |
+| Application submission | 300 | 58823 | 384 | 524 | 652.0 | 0.00 |
+| Application submission | 400 | 59620 | 505 | 674 | 659.9 | 0.00 |
+| Application submission | 500 | 65663 | 574 | 740 | 726.2 | 0.00 |
+| Event search | 100 | 78975 | 95 | 133 | 877.5 | 0.00 |
+| Event search | 200 | 81009 | 185 | 264 | 899.2 | 0.00 |
+| Event search | 300 | 75706 | 298 | 412 | 839.6 | 0.00 |
+| Event search | 400 | 80808 | 372 | 504 | 895.3 | 0.00 |
+| Event search | 500 | 67450 | 558 | 751 | 746.6 | 0.00 |
+
+Response codes per run:
+
+- Login @ 100: {'200': 3978}
+- Login @ 200: {'200': 4163}
+- Login @ 300: {'200': 4200}
+- Login @ 400: {'200': 4392}
+- Login @ 500: {'200': 4517}
+- Job search @ 100: {'200': 78820}
+- Job search @ 200: {'200': 75194}
+- Job search @ 300: {'200': 84214}
+- Job search @ 400: {'200': 75326}
+- Job search @ 500: {'200': 82736}
+- Application submission @ 100: {'409': 62598, '201': 240}
+- Application submission @ 200: {'409': 63023, '201': 135}
+- Application submission @ 300: {'409': 58809, '201': 14}
+- Application submission @ 400: {'409': 59579, '201': 41}
+- Application submission @ 500: {'409': 65529, '201': 134}
+- Event search @ 100: {'200': 78975}
+- Event search @ 200: {'200': 81009}
+- Event search @ 300: {'200': 75706}
+- Event search @ 400: {'200': 80808}
+- Event search @ 500: {'200': 67450}
+
+Wrote jmeter/results/response_time_vs_concurrency.png

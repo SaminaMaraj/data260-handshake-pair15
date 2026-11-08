@@ -1,0 +1,31 @@
+(excluded 21 requests rejected by authentication, HTTP 401/403)
+===== 160 assistant requests =====
+total latency  mean   126692 ms   p50   150076 ms   p95   294028 ms   p99   294205 ms
+
+stage           mean ms     p50 ms     p95 ms    share
+queue_wait          4.9        3.3       13.5     0.0%
+model          108414.1   150024.1   150102.1    85.6%
+db                  5.5        4.3       12.3     0.0%
+tool                1.0        0.7        2.6     0.0%
+other           18266.0       11.9   143988.2    14.4%
+
+DOMINANT STAGE: model (85.6% of all assistant latency)
+statuses: {'ok': 3, 'model_error': 93, 'completed': 64}
+tokens per request: mean 5163, max 22636
+
+===== one successful trace =====
+trace_id 10ca59b6bdb37db6bf812405726bb5c5  service p15-assistant  POST /assistant/chat
+status completed  http 200  db_ops 10
+  @  39559.7 ms  model  chat                       39552.9 ms  inference 39546.7 ms, wait 6.2 ms, tokens 1948+875
+  @  39565.8 ms  tool   search_jobs                    5.1 ms  (db 2.8 ms)
+  @  88311.7 ms  model  chat                       48742.2 ms  inference 48736.0 ms, wait 6.2 ms, tokens 4650+958
+  stages: queue_wait 12.4 ms, model 88282.7 ms, db 8.7 ms, tool 2.3 ms, other 14.4 ms, total 88320.5 ms
+
+===== one failed trace =====
+trace_id jmeter-40-2  service p15-assistant  POST /assistant/chat
+status model_error  http 200  db_ops 9
+error  Ollama request failed: timed out
+  @ 263969.7 ms  model  chat                      120043.1 ms  inference 120040.5 ms, wait 2.6 ms, tokens 1357+247
+  @ 263972.6 ms  tool   search_jobs                    2.7 ms  (db 1.6 ms)
+  @ 293955.7 ms  model  chat                       29978.3 ms  inference 29978.3 ms, wait 0.0 ms, tokens 3534+17
+  stages: queue_wait 2.6 ms, model 150018.8 ms, db 4.0 ms, tool 1.1 ms, other 143932.4 ms, total 293958.9 ms
