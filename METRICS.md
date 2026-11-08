@@ -1,6 +1,6 @@
 # METRICS.md
 
-DATA260 Lab 1, Pair 15. All numbers below come from the files in
+DATA260 Lab 1, Pair 15 (Lab 2 metrics are at the end of this file). All numbers below come from the files in
 `docs/evidence/`. The final runs are `reliability_before_v3.txt`,
 `reliability_after_v3.txt`, `injection_before_after_v4.txt`,
 `five_tests_v2.txt`, and `migration_event_prefs_v2.txt`. Older evidence
@@ -229,3 +229,116 @@ chat panel but a different confirmation backend (database-stored pending
 saves, 10-minute timeout). The browser screenshots are therefore not a
 browser test of the exact main backend (in-memory pending saves, 15-minute
 timeout), which was tested with the scripted and approval tests above.
+
+---
+
+# Lab 2 metrics
+
+All numbers come from `docs/evidence/` and `jmeter/results*/`.
+The Kafka failure demos (Part 2) and the Redux evidence (Part 4) are
+added by Bhavana.
+
+## L2-1. Tests and harness
+
+| Check | Result |
+|---|---|
+| `pytest tests/test_*.py` | 183 passed |
+| `python -m harness.agent_harness` | 18/18 cases (12 required + 6 additional) |
+| Lab 1 API parity on MongoDB (`test_mongo_parity.py`) | 136 calls, all match |
+
+Repair-sensitive harness cases (4 runs), repair off vs. on:
+
+| Measure | Repair off | Repair on |
+|---|---|---|
+| Completed | 0 | 2 |
+| Repaired | 0 | 2 |
+| Repair failed | 3 | 1 |
+
+## L2-2. Memory consolidation (62-entry test memory, real model, through Kafka)
+
+| Version | Entries after | Checks passed |
+|---|---|---|
+| v1: model rewrites the memory | 58 (fallback) | 4/10 |
+| v2: model groups entries | 30 | 7/10 |
+| v3: groups + "replaced by" question | 24 | 10/10 |
+
+v3 kept 24 of 27 distinct facts (`memory_facts_kept.txt`): 3 facts were
+merged away by mistake although all 10 checks passed.
+
+## L2-3. Token tracking and compaction (`compaction_demo.txt`)
+
+| Turn | Tool | Context used (of 16,384) |
+|---|---|---|
+| 1 | search_jobs | 20.3% |
+| 2 | search_jobs | 26.8% |
+| 3 | search_events | 39.2% |
+| 4 | search_jobs | 48.7% |
+| `/compact` | | 54.7% -> 26.0% (8,963 -> 4,253 tokens, 16 -> 3 messages) |
+
+Recall after compaction: 3/3. First run at 8,192 tokens
+(`compaction_demo_8k.txt`): one turn reached 111.8% of the window; 2/3.
+
+## L2-4. Tracing: 50 assistant requests, one at a time (`trace_report.txt`)
+
+| Stage | Mean (ms) | p50 (ms) | p95 (ms) | Share |
+|---|---|---|---|---|
+| model | 59,688.7 | 59,533.2 | 100,082.4 | 99.9% |
+| other | 13.0 | 11.9 | 18.1 | 0.0% |
+| queue_wait | 11.1 | 10.2 | 20.0 | 0.0% |
+| db | 9.0 | 8.5 | 15.0 | 0.0% |
+| tool | 2.1 | 2.0 | 5.0 | 0.0% |
+
+Total latency: mean 59.7 s, p50 59.6 s, p95 100.1 s, p99 123.3 s.
+Dominant stage: model inference.
+
+## L2-5. JMeter (CRUD: 30 s ramp-up, 90 s load; assistant: 10 s, 180 s)
+
+Run 1, default nginx gateway: 502s at 100-200 users, 89-99% errors
+(NoHttpResponseException) at 300-500 users. Full table in
+`jmeter/results_before/summary.md`.
+
+Run 2, tuned gateway (`jmeter/results/summary.md`):
+
+| Endpoint | Users | Avg (ms) | p95 (ms) | Throughput (req/s) | Error % |
+|---|---|---|---|---|---|
+| Login | 100 | 1910 | 2760 | 43.5 | 0.00 |
+| Login | 200 | 3690 | 4960 | 44.9 | 0.00 |
+| Login | 300 | 5558 | 7204 | 44.6 | 0.00 |
+| Login | 400 | 7149 | 9007 | 46.0 | 0.00 |
+| Login | 500 | 8857 | 11207 | 46.4 | 0.00 |
+| Job search | 100 | 95 | 132 | 875.6 | 0.00 |
+| Job search | 200 | 200 | 272 | 834.6 | 0.00 |
+| Job search | 300 | 268 | 352 | 934.4 | 0.00 |
+| Job search | 400 | 357 | 480 | 915.2 | 0.00 |
+| Job search | 500 | 455 | 592 | 916.7 | 0.00 |
+| Application submission | 100 | 120 | 176 | 698.0 | 0.00 |
+| Application submission | 200 | 238 | 325 | 700.8 | 0.00 |
+| Application submission | 300 | 384 | 524 | 652.0 | 0.00 |
+| Application submission | 400 | 505 | 674 | 659.9 | 0.00 |
+| Application submission | 500 | 574 | 740 | 726.2 | 0.00 |
+| Event search | 100 | 95 | 133 | 877.5 | 0.00 |
+| Event search | 200 | 185 | 264 | 899.2 | 0.00 |
+| Event search | 300 | 298 | 412 | 839.6 | 0.00 |
+| Event search | 400 | 372 | 504 | 895.3 | 0.00 |
+| Event search | 500 | 558 | 751 | 746.6 | 0.00 |
+
+Application submission: 99.7% of responses were 409 "already applied"
+(seeded students had already applied to most jobs). It does not go
+through Kafka yet; to be rerun once the producer exists.
+
+| Assistant users | Samples | p50 (ms) | p95 (ms) | p99 (ms) | Error % |
+|---|---|---|---|---|---|
+| 5 | 10 | 150068 | 150104 | 150108 | 0.00 |
+| 10 | 20 | 150052 | 150116 | 150117 | 0.00 |
+| 20 | 40 | 150104 | 150116 | 150120 | 0.00 |
+| 50 | 90 | 152072 | 180005 | 180008 | 22.22 |
+
+Traces of those 160 requests (`trace_report_jmeter_assistant.txt`):
+64 completed, 93 ended with model_error at the 150 s limit, 3 other.
+HTTP 200 hides these failures, so the trace status is the real error rate.
+
+**Bottlenecks:** (1) nginx defaults, fixed; (2) login: bcrypt CPU, about
+45 req/s; (3) search and events: one Python process per service plus
+JMeter on the same laptop, about 900 req/s; database about 5 ms per
+request; (4) assistant: a single model answering one request at a time,
+about 0.27 req/s.

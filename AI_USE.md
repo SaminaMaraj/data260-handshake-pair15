@@ -1,7 +1,7 @@
 # AI_USE.md
 
 This file records how each partner used AI assistants while building
-Lab 1, with incorrect outputs, how they were detected, and how they
+Lab 1 and Lab 2 (Lab 2 is at the end), with incorrect outputs, how they were detected, and how they
 were fixed.
 
 Two kinds of AI were involved:
@@ -138,3 +138,74 @@ asks the student for it.
 
 - *Detected:* Opportunities to improve descriptions and presentation of implemented features.
 - *Corrected:* Organized descriptions and screenshots of the Student Portal, Company Portal, and AI Assistant interface.
+---
+
+# Lab 2
+
+## Kazi Samina Maraj Mumu
+
+### How I used AI assistants
+
+- Claude: planning my part of Lab 2, writing and debugging code for the
+  service split, the MongoDB migration, memory and consolidation, the
+  guardrails, tracing, compaction, Docker and the JMeter scripts, and
+  drafting documentation and the report.
+- The runtime model (qwen3:8b) runs inside the app: the assistant and
+  memory consolidation.
+- I ran every step on my own laptop, checked the results against the
+  running system, and made the commits.
+
+### Incorrect output 1 (coding assistant): missing dependency
+
+- **What happened:** Claude added `jsonschema` (used by guardrail G2) to
+  the assistant's Docker requirements but not to the top-level
+  `requirements.txt`. The Docker images worked, so nothing failed there.
+- **How I detected it:** when I ran the tests from my own local
+  environment for the report, `tests/test_guardrails.py` failed to
+  import and the harness crashed with
+  `ModuleNotFoundError: No module named 'jsonschema'`.
+- **Fix:** added `jsonschema` to `requirements.txt` (commit `2cd01be`).
+  Afterwards: 183 tests passed and the harness passed 18/18.
+
+### Incorrect output 2 (coding assistant): a demo that failed for the wrong reason
+
+- **What happened:** the compaction demo reported 2/3. It read the turn's
+  tool calls from the conversation in the response, but automatic
+  compaction had already replaced that conversation with a summary, so
+  it saw no tool calls and failed the `rank_jobs` check.
+- **How I detected it:** every compacted turn showed `tools: []` even
+  though its answer listed real search results.
+- **Fix:** the API now returns `tools_used` for each turn, recorded before
+  compaction; `/compact` is skipped when it would not save tokens; the
+  context window was raised to 16,384 (commit `f97a1c5`). Rerun: 3/3.
+
+### Incorrect output 3 (runtime model): facts lost during consolidation
+
+- **What happened:** with qwen3:8b, consolidation passed all 10 checks
+  (62 -> 24 entries), but 3 of the 27 facts disappeared. The model
+  grouped "studying for an MS in Applied Data Intelligence", "strong in
+  Python" and "prefers small companies" with unrelated entries, and the
+  newest-entry rule kept the other entry.
+- **How I detected it:** I compared the facts before and after
+  (`docs/evidence/memory_facts_kept.txt`) instead of trusting the check
+  results; the checks only tested "at most one copy".
+- **Fix / next step:** documented in `docs/MEMORY.md` and the report. The
+  right fix is a check that every distinct fact survives, and rejecting
+  groups whose entries share too few words.
+
+### Incorrect output 4 (coding assistant): default gateway settings
+
+- **What happened:** the generated nginx gateway used default settings
+  (1 worker, 512 connections, a new upstream connection per request).
+- **How I detected it:** the first JMeter run had 502s at 100-200 users
+  and 89-99% errors from 300 users, while the service logs showed healthy
+  responses.
+- **Fix:** tuned workers, connections and upstream keepalive (commit
+  `f3dcbb9`). Second run: 0% errors at every level.
+
+---
+
+## Bhavana
+
+*To be added by Bhavana: how she used AI assistants in Lab 2, at least
+one incorrect output, how it was detected, and the fix.*

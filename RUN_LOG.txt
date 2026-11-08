@@ -367,3 +367,131 @@ All final tests were run locally against the Pair 15 FastAPI and MySQL setup.
       correctly; with the wrapper off it wrote the rank_jobs request as
       JSON text and made no tool call.
     - The original description of event 3 was restored after the test
+
+
+================================================================
+DATA260 Lab 2 Pair 15 Run Log
+================================================================
+
+Project: Handshake Pair 15, Lab 2 (distributed system)
+Pair: 15
+Gateway port: 9150 (services 9151-9156)
+Database: handshake_p15 (MongoDB 7)
+Kafka prefix: p15.
+Model: qwen3:8b through Ollama on the host
+Branch: lab2/service-split
+
+Samina's runs are below. Bhavana adds the three Kafka failure demos
+(duplicate event, worker killed during processing, poison message)
+in the section at the end.
+
+2026-10-30  Service split, MongoDB and Docker
+
+1. Split the backend into six services (student 9151, company 9152,
+   job 9153, application 9154, event 9155, assistant 9156) behind one
+   nginx gateway on 9150.
+2. Migrated all Lab 1 tables to MongoDB with scripts/migrate_to_mongo.py.
+   tests/test_mongo_parity.py replays 136 Lab 1 API calls; all match.
+3. Added sessions with a 30-minute TTL, GridFS for resumes and pictures,
+   and unique indexes for applications, registrations and saved items.
+4. Added the three-layer memory, the memory consolidation consumer,
+   the eight guardrails, the evaluation harness, tracing, token tracking
+   and compaction.
+5. Added a Dockerfile per service and docker-compose.yml.
+   docker compose up -d: all containers healthy.
+6. Moved MongoDB to host port 27018 (27017 was already in use on the Mac)
+   and advertised Kafka on 127.0.0.1:29092.
+
+2026-10-31  First real consolidation run (failed, then fixed)
+
+1. Seeded student 1 with 62 memory entries (27 facts, 4 exact-duplicate
+   groups, 5 contradictions) and published one message to
+   p15.memory.consolidate.
+2. Every model call timed out at 180 s (qwen3's thinking mode). After
+   3 attempts the worker sent the message to p15.memory.consolidate.dlq.
+3. Processing took longer than Kafka's max.poll.interval.ms (5 min), so
+   Kafka removed the worker from its group. The commit failed with
+   UNKNOWN_MEMBER_ID, the worker restarted, and the uncommitted message
+   was redelivered again and again. No data was lost or duplicated.
+   Log: docs/evidence/memory_worker_incident_oct31.log
+4. Fix (commit 22263b1): worker-only model client with thinking off and
+   a 600 s timeout, max.poll.interval.ms sized to the worst case (about
+   32 min), failed commits logged instead of raised, and dead-lettered
+   events recorded in processed_events so they are not retried.
+
+2026-11-01 to 2026-11-03  Consolidation versions
+
+1. v1, model rewrites the whole memory (thinking off): the answer put
+   the same entry in two places and was rejected; the fallback gave
+   62 -> 58 entries, 4/10 checks.
+   docs/evidence/memory_consolidation_v1_think_off.txt
+2. v2, model only groups entries per category: 62 -> 30, 7/10 checks.
+   Old and new sides of three contradictions were never linked.
+   docs/evidence/memory_consolidation_v2_clustering.txt
+3. v3, adds the question "which entries were replaced by newer ones?":
+   62 -> 24, 10/10 checks, through Kafka with the real model.
+   docs/evidence/memory_consolidation.txt
+4. Checked the facts themselves: 24 of 27 facts are still present.
+   Three facts (MS program, strong in Python, prefers small companies)
+   were grouped with unrelated entries and dropped. The 10 checks did
+   not catch this. docs/evidence/memory_facts_kept.txt
+
+2026-11-06  Compaction demo
+
+1. First run with a context window of 8,192 tokens: one search already
+   used 74%, every turn was compacted automatically, and one turn reached
+   111.8%. Recall 2/3. The failed check was a bug in the demo: after an
+   automatic compaction it could not see the turn's tool calls.
+   docs/evidence/compaction_demo_8k.txt
+2. Fix (commit f97a1c5): the API returns tools_used per turn, /compact is
+   skipped when it would not save tokens, and the window is 16,384.
+3. Second run: context 20.3% -> 26.8% -> 39.2% -> 48.7% over 4 turns.
+   /compact: 16 -> 3 messages, 8,963 -> 4,253 tokens (54.7% -> 26.0%).
+   Recall 3/3 (preferred city, earlier companies, "make it higher paying"
+   through rank_jobs). docs/evidence/compaction_demo.txt
+
+2026-11-06 to 2026-11-07  50-request trace analysis
+
+1. Sent 50 assistant requests one at a time through the gateway.
+   Requests 1-30 completed. Requests 31-50 got HTTP 401: the run passed
+   30 minutes and the login session expired, as designed.
+2. Fix (commit 8942edf): the load script logs in again on 401, and the
+   report leaves out requests rejected by authentication.
+3. Sent 20 more requests: all completed.
+4. Result over 50 completed requests: model 99.9% of the time
+   (mean 59.7 s); database 9 ms, tool code 2 ms, other 13 ms.
+   docs/evidence/trace_report.txt, trace_failed.txt
+
+2026-11-07  JMeter
+
+1. Run 1 (default gateway): 502 Bad Gateway at 100-200 users and
+   NoHttpResponseException (89-99% errors) at 300-500 users. The services
+   were healthy; nginx had 1 worker, 512 connections and no upstream
+   keepalive. docs/evidence/jmeter_run.txt, jmeter/results_before/
+2. Fix (commit f3dcbb9): worker_processes auto, 8192 connections,
+   upstream keepalive pools.
+3. Run 2: 0% errors at every CRUD level. The laptop slept during part of
+   the run, which cut 8 levels short (about 28 s of load each); those
+   8 levels were rerun with caffeinate. docs/evidence/jmeter_run_after*.txt,
+   jmeter/results/
+4. Assistant at 5-50 users: 64 of 160 requests completed and 93 hit the
+   150 s limit (controlled model_error). At 50 users the gateway's 180 s
+   limit returned 20 x 504.
+   docs/evidence/trace_report_jmeter_assistant.txt
+
+2026-11-07  Final checks
+
+1. Running the tests from a fresh local environment failed:
+   No module named 'jsonschema'. It was installed in the assistant image
+   but missing from requirements.txt. Fixed in commit 2cd01be.
+2. pytest: 183 passed.
+3. python -m harness.agent_harness: 18/18 cases passed.
+
+----------------------------------------------------------------
+Kafka failure demos (Bhavana): to be added
+----------------------------------------------------------------
+1. Duplicate event with the same key: idempotent consumer, no duplicate
+   in the database.
+2. Worker killed during processing, restarted: offset committed only
+   after the database write.
+3. Poison message: bounded retries, dead-letter topic, pipeline continues.
