@@ -66,7 +66,7 @@ reloading it for each window size).
 
 **Why 16384, not 8192 (first real run, Nov 6):** at 8192 a single job
 search already used 74% of the window (14 rules, up to 40 memory entries,
-11 tool schemas and the search result), every later turn crossed the 75%
+6 tool schemas and the search result), every later turn crossed the 75%
 threshold and was compacted automatically, and one turn reached 111.8%, which
 means Ollama silently dropped the start of the prompt (the system rules).
 That run is kept in `docs/evidence/compaction_demo_8k.txt`.
