@@ -25,7 +25,7 @@ Other local settings:
 | Frontend dev server | http://localhost:5173 |
 | Ollama model | qwen3:8b |
 
-## Lab 2 (in progress on branch `lab2/service-split`)
+## Lab 2 (branch `lab2/service-split`)
 
 Lab 2 splits the backend into six services on MongoDB, adds Kafka, assistant
 memory, guardrails and an evaluation harness. Details:
@@ -63,24 +63,67 @@ The harness writes `harness/output/agent_harness.jsonl` and
 
 ### Real-model evidence (stack running, from `backend/`)
 
+Each command takes a while because every answer comes from qwen3:8b on the
+laptop. Keep the Mac awake for long runs: run `caffeinate -dims` in a second
+terminal and keep the lid open.
+
 ```bash
 export MONGO_URL=mongodb://127.0.0.1:27018 KAFKA_BOOTSTRAP=127.0.0.1:29092
+
+# Memory consolidation through Kafka: 62 seeded entries -> checks (a few minutes)
 python scripts/memory_consolidation_report.py --student 1 --via-kafka | tee ../docs/evidence/memory_consolidation.txt
+
+# Token tracking and compaction: 4 turns, /compact, 3 recall checks (about 45 min)
 python scripts/compaction_demo.py | tee ../docs/evidence/compaction_demo.txt
-python scripts/trace_report.py load --n 50 && python scripts/trace_report.py report --last 50 | tee ../docs/evidence/trace_report.txt
+
+# Tracing: 50 assistant requests one at a time (about 50 min), then the stage report
+python scripts/trace_report.py load --n 50 | tee ../docs/evidence/trace_load.txt
+python scripts/trace_report.py report --last 50 | tee ../docs/evidence/trace_report.txt
+python scripts/trace_report.py show <trace_id>          # the timeline of one trace
 ```
+
+`trace_report.py load` logs in again when the 30-minute session expires, and
+`report` leaves out requests rejected by authentication (HTTP 401/403).
 
 ### JMeter (Part 5)
 
 ```bash
 brew install jmeter
 python jmeter/make_data.py --tokens && python jmeter/validate_plan.py   # 10-second sanity check
-bash jmeter/run_all.sh                  # every endpoint and level (~45 min), then the summary
-HOST=<load-balancer-host> PORT=80 bash jmeter/run_all.sh   # against EKS
+caffeinate -dims bash jmeter/run_all.sh 2>&1 | tee docs/evidence/jmeter_run.txt   # all levels, about 1 hour
+HOST=<load-balancer-host> PORT=80 bash jmeter/run_all.sh                         # against EKS
+```
+
+Rerun only some levels (the other results are kept). A space, `" "`, means
+"none"; an empty value falls back to the default list:
+
+```bash
+ENDPOINTS=apply ASSISTANT_LEVELS=" " bash jmeter/run_all.sh                 # application submission only
+ENDPOINTS=search CRUD_LEVELS="500" ASSISTANT_LEVELS=" " bash jmeter/run_all.sh
+ENDPOINTS=" " bash jmeter/run_all.sh                                        # assistant only
+python jmeter/summarize.py jmeter/results                                   # rebuild the summary
 ```
 
 Results: `jmeter/results/summary.md`, `summary.csv`,
 `response_time_vs_concurrency.png` and an HTML dashboard per run.
+`jmeter/results_before/` keeps the first run, before the gateway fix.
+To see what the assistant requests really did (HTTP 200 can hide a time-out):
+
+```bash
+cd backend && python scripts/trace_report.py report --last 160
+```
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `502 Bad Gateway` after recreating a service | `docker compose restart p15-frontend` (nginx keeps the old container address) |
+| A JMeter level ran much shorter than 90 s | The Mac slept: rerun that level with `caffeinate -dims` |
+| `model_error` / "Network is unreachable" from the assistant | Start Ollama (`open -a Ollama`), then `docker compose up -d --force-recreate p15-assistant p15-memory-worker` |
+| `No module named 'jsonschema'` when running tests | `pip install -r requirements-dev.txt` |
+
+Lab 2 results are summarized at the end of `METRICS.md`, `RUN_LOG.txt` and
+`AI_USE.md`; raw evidence is in `docs/evidence/`.
 
 ## Technology stack
 
@@ -118,7 +161,7 @@ docs/                     Schema and verification notes
 METRICS.md  RUN_LOG.txt  AI_USE.md
 ```
 
-## Setup
+## Setup (Lab 1: single FastAPI app on MySQL)
 
 ### 1. Environment file
 
